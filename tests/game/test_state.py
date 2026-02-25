@@ -1,11 +1,11 @@
 """Tests for GameState."""
 
-from chessy.core.enums import Color, GameResult, MoveFlag
-from chessy.core.move import Move
-from chessy.core.notation import position_to_fen
-from chessy.core.types import E2, E4, D7, D5, parse_square
-from chessy.game.interfaces import GamePhase
-from chessy.game.state import GameState
+from chessie.core.enums import Color, GameResult, MoveFlag
+from chessie.core.move import Move
+from chessie.core.notation import position_to_fen
+from chessie.core.types import E2, E4, D7, D5, parse_square
+from chessie.game.interfaces import GamePhase
+from chessie.game.state import GameState
 
 
 class TestGameStateSetup:

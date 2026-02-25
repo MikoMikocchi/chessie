@@ -2,17 +2,17 @@
 
 import pytest
 
-from chessy.core.enums import CastlingRights, Color, MoveFlag, PieceType
-from chessy.core.move import Move
-from chessy.core.notation import (
+from chessie.core.enums import CastlingRights, Color, MoveFlag, PieceType
+from chessie.core.move import Move
+from chessie.core.notation import (
     STARTING_FEN,
     move_to_san,
     parse_san,
     position_from_fen,
     position_to_fen,
 )
-from chessy.core.piece import Piece
-from chessy.core.types import E1, E2, E3, E4, E8, parse_square
+from chessie.core.piece import Piece
+from chessie.core.types import E1, E2, E3, E4, E8, parse_square
 
 
 class TestFenParsing:
@@ -111,7 +111,7 @@ class TestSAN:
     def test_san_roundtrip(self) -> None:
         """parse_san(move_to_san(m)) should return the same move."""
         pos = position_from_fen(STARTING_FEN)
-        from chessy.core.move_generator import MoveGenerator
+        from chessie.core.move_generator import MoveGenerator
 
         gen = MoveGenerator(pos)
         for move in gen.generate_legal_moves():

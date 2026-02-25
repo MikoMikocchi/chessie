@@ -1,8 +1,8 @@
 """Tests for Player implementations."""
 
-from chessy.core.enums import Color
-from chessy.core.notation import position_from_fen, STARTING_FEN
-from chessy.game.player import AIPlayer, HumanPlayer
+from chessie.core.enums import Color
+from chessie.core.notation import position_from_fen, STARTING_FEN
+from chessie.game.player import AIPlayer, HumanPlayer
 
 
 class TestHumanPlayer:
@@ -28,9 +28,9 @@ class TestHumanPlayer:
 
 class TestAIPlayer:
     def test_properties(self) -> None:
-        p = AIPlayer(Color.BLACK, "Chessy AI")
+        p = AIPlayer(Color.BLACK, "Chessie AI")
         assert p.color == Color.BLACK
-        assert p.name == "Chessy AI"
+        assert p.name == "Chessie AI"
         assert p.is_human is False
 
     def test_request_move_calls_callback(self) -> None:

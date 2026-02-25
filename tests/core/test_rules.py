@@ -1,8 +1,8 @@
 """Tests for Rules: checkmate, stalemate, draw detection."""
 
-from chessy.core.enums import GameResult
-from chessy.core.notation import position_from_fen
-from chessy.core.rules import Rules
+from chessie.core.enums import GameResult
+from chessie.core.notation import position_from_fen
+from chessie.core.rules import Rules
 
 
 class TestCheck:

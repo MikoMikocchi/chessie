@@ -2,9 +2,9 @@
 
 import time
 
-from chessy.core.enums import Color
-from chessy.game.clock import Clock
-from chessy.game.interfaces import TimeControl
+from chessie.core.enums import Color
+from chessie.game.clock import Clock
+from chessie.game.interfaces import TimeControl
 
 
 class TestClockBasics:

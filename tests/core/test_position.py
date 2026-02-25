@@ -1,11 +1,11 @@
 """Tests for Position make/unmake."""
 
-from chessy.core.enums import CastlingRights, Color, MoveFlag, PieceType
-from chessy.core.move import Move
-from chessy.core.move_generator import MoveGenerator
-from chessy.core.notation import STARTING_FEN, position_from_fen, position_to_fen
-from chessy.core.piece import Piece
-from chessy.core.types import (
+from chessie.core.enums import CastlingRights, Color, MoveFlag, PieceType
+from chessie.core.move import Move
+from chessie.core.move_generator import MoveGenerator
+from chessie.core.notation import STARTING_FEN, position_from_fen, position_to_fen
+from chessie.core.piece import Piece
+from chessie.core.types import (
     E1, E2, E4, D5, D7,
     parse_square,
 )

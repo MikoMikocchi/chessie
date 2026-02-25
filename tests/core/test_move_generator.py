@@ -5,9 +5,9 @@ Reference values: https://www.chessprogramming.org/Perft_Results
 
 import pytest
 
-from chessy.core.move_generator import MoveGenerator
-from chessy.core.notation import position_from_fen, STARTING_FEN
-from chessy.core.position import Position
+from chessie.core.move_generator import MoveGenerator
+from chessie.core.notation import position_from_fen, STARTING_FEN
+from chessie.core.position import Position
 
 
 def perft(position: Position, depth: int) -> int:

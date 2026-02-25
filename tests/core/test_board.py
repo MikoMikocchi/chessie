@@ -2,10 +2,10 @@
 
 import pytest
 
-from chessy.core.board import Board
-from chessy.core.enums import Color, PieceType
-from chessy.core.piece import Piece
-from chessy.core.types import (
+from chessie.core.board import Board
+from chessie.core.enums import Color, PieceType
+from chessie.core.piece import Piece
+from chessie.core.types import (
     A1, B1, C1, D1, E1, F1, G1, H1,
     E2,
     A8, B8, C8, D8, E8, F8, G8, H8,

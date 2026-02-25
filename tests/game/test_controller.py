@@ -2,12 +2,12 @@
 
 import pytest
 
-from chessy.core.enums import Color, GameResult, MoveFlag
-from chessy.core.move import Move
-from chessy.core.types import E2, E4, D7, D5, parse_square
-from chessy.game.controller import GameController
-from chessy.game.interfaces import DrawOffer, GamePhase, TimeControl
-from chessy.game.player import AIPlayer, HumanPlayer
+from chessie.core.enums import Color, GameResult, MoveFlag
+from chessie.core.move import Move
+from chessie.core.types import E2, E4, D7, D5, parse_square
+from chessie.game.controller import GameController
+from chessie.game.interfaces import DrawOffer, GamePhase, TimeControl
+from chessie.game.player import AIPlayer, HumanPlayer
 
 
 def _make_hh_controller(
