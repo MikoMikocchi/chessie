@@ -4,9 +4,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import QObject, QPointF, Qt, pyqtSignal
 from PyQt6.QtGui import QBrush, QColor, QFont, QPen
-from PyQt6.QtWidgets import QGraphicsRectItem, QGraphicsScene, QGraphicsSimpleTextItem
+from PyQt6.QtWidgets import (
+    QGraphicsRectItem,
+    QGraphicsScene,
+    QGraphicsSceneMouseEvent,
+    QGraphicsSimpleTextItem,
+)
 
 from chessie.core.enums import PieceType
 from chessie.core.move import Move
@@ -30,7 +35,7 @@ class BoardScene(QGraphicsScene):
 
     TILE = 80  # px per square
 
-    def __init__(self, parent: object | None = None) -> None:
+    def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._theme = BoardTheme.default()
         self._position: Position | None = None
@@ -82,8 +87,10 @@ class BoardScene(QGraphicsScene):
         self._clear_last_move_highlights()
         if move is None:
             return
-        for sq, color in [(move.from_sq, self._theme.last_move_from),
-                          (move.to_sq, self._theme.last_move_to)]:
+        for sq, color in [
+            (move.from_sq, self._theme.last_move_from),
+            (move.to_sq, self._theme.last_move_to),
+        ]:
             rect = self._make_highlight(sq, color)
             rect.setZValue(0.5)
             self._last_move_highlights.append(rect)
@@ -105,11 +112,11 @@ class BoardScene(QGraphicsScene):
 
     def _draw_board(self) -> None:
         """Draw or redraw the 64 squares and coordinates."""
-        for item in self._square_items.values():
-            self.removeItem(item)
+        for sq_item in self._square_items.values():
+            self.removeItem(sq_item)
         self._square_items.clear()
-        for item in self._coord_items:
-            self.removeItem(item)
+        for coord_item in self._coord_items:
+            self.removeItem(coord_item)
         self._coord_items.clear()
 
         t = self.TILE
@@ -133,7 +140,9 @@ class BoardScene(QGraphicsScene):
                 txt = QGraphicsSimpleTextItem(label)
                 txt.setFont(font)
                 txt.setBrush(
-                    QBrush(self._theme.coord_dark if is_light else self._theme.coord_light)
+                    QBrush(
+                        self._theme.coord_dark if is_light else self._theme.coord_light
+                    )
                 )
                 txt.setPos(vf * t + 2, vr * t + 1)
                 txt.setZValue(0.3)
@@ -146,7 +155,9 @@ class BoardScene(QGraphicsScene):
                 txt = QGraphicsSimpleTextItem(letter)
                 txt.setFont(font)
                 txt.setBrush(
-                    QBrush(self._theme.coord_dark if is_light else self._theme.coord_light)
+                    QBrush(
+                        self._theme.coord_dark if is_light else self._theme.coord_light
+                    )
                 )
                 txt.setPos(vf * t + t - 12, vr * t + t - 16)
                 txt.setZValue(0.3)
@@ -179,8 +190,8 @@ class BoardScene(QGraphicsScene):
 
     # ── Mouse interaction ────────────────────────────────────────────────
 
-    def mousePressEvent(self, event) -> None:  # type: ignore[override]
-        if not self._interactive or self._position is None:
+    def mousePressEvent(self, event: QGraphicsSceneMouseEvent | None) -> None:
+        if not self._interactive or self._position is None or event is None:
             return super().mousePressEvent(event)
 
         sq = self._pos_to_square(event.scenePos())
@@ -212,8 +223,12 @@ class BoardScene(QGraphicsScene):
 
         super().mousePressEvent(event)
 
-    def mouseReleaseEvent(self, event) -> None:  # type: ignore[override]
-        if self._dragging_item is not None and self._position is not None:
+    def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent | None) -> None:
+        if (
+            self._dragging_item is not None
+            and self._position is not None
+            and event is not None
+        ):
             item = self._dragging_item
             drop_sq = self._pos_to_square(event.scenePos())
 
@@ -281,7 +296,9 @@ class BoardScene(QGraphicsScene):
             gen = MoveGenerator(self._position)
             self._legal_moves = gen.generate_legal_moves()
 
-        candidates = [m for m in self._legal_moves if m.from_sq == from_sq and m.to_sq == to_sq]
+        candidates = [
+            m for m in self._legal_moves if m.from_sq == from_sq and m.to_sq == to_sq
+        ]
         if not candidates:
             return None
         if len(candidates) == 1:
@@ -298,7 +315,7 @@ class BoardScene(QGraphicsScene):
             return 7 - file, rank
         return file, 7 - rank
 
-    def _pos_to_square(self, pos) -> Square | None:
+    def _pos_to_square(self, pos: QPointF) -> Square | None:
         """Scene position → board square."""
         t = self.TILE
         col = int(pos.x() // t)

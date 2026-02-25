@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QResizeEvent
-from PyQt6.QtWidgets import QGraphicsView, QSizePolicy
+from PyQt6.QtGui import QPainter, QResizeEvent
+from PyQt6.QtWidgets import QGraphicsView, QSizePolicy, QWidget
 
 from chessie.core.move import Move
 from chessie.ui.board.board_scene import BoardScene
@@ -19,13 +19,13 @@ class BoardView(QGraphicsView):
 
     move_made = pyqtSignal(Move)
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         self._scene = BoardScene()
         super().__init__(self._scene, parent)
 
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.setRenderHint(self.renderHints())
+        self.setRenderHint(QPainter.RenderHint.Antialiasing)
         self.setDragMode(QGraphicsView.DragMode.NoDrag)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setMinimumSize(320, 320)
@@ -37,6 +37,6 @@ class BoardView(QGraphicsView):
     def board_scene(self) -> BoardScene:
         return self._scene
 
-    def resizeEvent(self, event: QResizeEvent) -> None:
+    def resizeEvent(self, event: QResizeEvent | None) -> None:
         super().resizeEvent(event)
         self.fitInView(self._scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
