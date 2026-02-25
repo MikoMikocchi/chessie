@@ -4,7 +4,14 @@ from __future__ import annotations
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QIcon
-from PyQt6.QtWidgets import QDialog, QHBoxLayout, QPushButton, QVBoxLayout, QLabel
+from PyQt6.QtWidgets import (
+    QDialog,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 from chessie.core.enums import Color, PieceType
 from chessie.core.piece import Piece
@@ -14,7 +21,7 @@ from chessie.ui.resources import piece_pixmap
 class PromotionDialog(QDialog):
     """Modal dialog to select promotion piece type."""
 
-    def __init__(self, color: Color, parent=None) -> None:
+    def __init__(self, color: Color, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Promote pawn")
         self.setModal(True)
@@ -54,7 +61,7 @@ class PromotionDialog(QDialog):
         return self._selected
 
     @staticmethod
-    def ask(color: Color, parent=None) -> PieceType:
+    def ask(color: Color, parent: QWidget | None = None) -> PieceType:
         """Show the dialog and return the chosen piece type."""
         dlg = PromotionDialog(color, parent)
         dlg.exec()

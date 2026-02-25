@@ -8,7 +8,14 @@ from chessie.core.move import Move
 from chessie.core.move_generator import MoveGenerator
 from chessie.core.piece import Piece
 from chessie.core.position import Position
-from chessie.core.types import Square, file_of, make_square, parse_square, rank_of, square_name
+from chessie.core.types import (
+    Square,
+    file_of,
+    make_square,
+    parse_square,
+    rank_of,
+    square_name,
+)
 
 STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
@@ -132,9 +139,7 @@ def move_to_san(position: Position, move: Move) -> str:
         san = "O-O-O"
     else:
         san = ""
-        is_capture = (
-            board[move.to_sq] is not None or move.flag == MoveFlag.EN_PASSANT
-        )
+        is_capture = board[move.to_sq] is not None or move.flag == MoveFlag.EN_PASSANT
 
         if piece.piece_type == PieceType.PAWN:
             if is_capture:

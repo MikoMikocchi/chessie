@@ -3,7 +3,7 @@
 from chessie.core.enums import Color, GameResult, MoveFlag
 from chessie.core.move import Move
 from chessie.core.notation import position_to_fen
-from chessie.core.types import E2, E4, D7, D5, parse_square
+from chessie.core.types import D5, D7, E2, E4, parse_square
 from chessie.game.interfaces import GamePhase
 from chessie.game.state import GameState
 
@@ -102,8 +102,12 @@ class TestGameStateTermination:
         gs = GameState()
         gs.setup()
         gs.apply_move(Move(parse_square("f2"), parse_square("f3")))
-        gs.apply_move(Move(parse_square("e7"), parse_square("e5"), MoveFlag.DOUBLE_PAWN))
-        gs.apply_move(Move(parse_square("g2"), parse_square("g4"), MoveFlag.DOUBLE_PAWN))
+        gs.apply_move(
+            Move(parse_square("e7"), parse_square("e5"), MoveFlag.DOUBLE_PAWN)
+        )
+        gs.apply_move(
+            Move(parse_square("g2"), parse_square("g4"), MoveFlag.DOUBLE_PAWN)
+        )
         gs.apply_move(Move(parse_square("d8"), parse_square("h4")))
         assert gs.result == GameResult.BLACK_WINS
         assert gs.is_game_over

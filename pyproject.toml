@@ -22,4 +22,55 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 
 [dependency-groups]
-dev = ["pytest>=8.3", "pytest-cov>=6.0"]
+dev = [
+  "pytest>=8.3",
+  "pytest-cov>=6.0",
+  "ruff>=0.9",
+  "mypy>=1.14",
+  "pre-commit>=4.0",
+]
+
+# ---------------------------------------------------------------------------
+# Ruff – linter + formatter
+# ---------------------------------------------------------------------------
+[tool.ruff]
+src = ["src"]
+target-version = "py313"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle errors
+  "W",   # pycodestyle warnings
+  "F",   # pyflakes
+  "I",   # isort
+  "UP",  # pyupgrade
+  "B",   # flake8-bugbear
+  "SIM", # flake8-simplify
+  "C4",  # flake8-comprehensions
+]
+ignore = [
+  "E501", # line too long – handled by formatter
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["chessie"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# ---------------------------------------------------------------------------
+# Mypy – static type checker
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.13"
+mypy_path = "src"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true # Qt stubs aren't always available
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false

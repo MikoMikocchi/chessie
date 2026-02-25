@@ -4,7 +4,7 @@ import pytest
 
 from chessie.core.enums import Color, GameResult, MoveFlag
 from chessie.core.move import Move
-from chessie.core.types import E2, E4, D7, D5, parse_square
+from chessie.core.types import D5, D7, E2, E4, parse_square
 from chessie.game.controller import GameController
 from chessie.game.interfaces import DrawOffer, GamePhase, TimeControl
 from chessie.game.player import AIPlayer, HumanPlayer
@@ -72,8 +72,12 @@ class TestSubmitMove:
         ctrl.events.on_game_over.append(lambda r: results.append(r))
         # Fool's mate: 1.f3 e5 2.g4 Qh4#
         ctrl.submit_move(Move(parse_square("f2"), parse_square("f3")))
-        ctrl.submit_move(Move(parse_square("e7"), parse_square("e5"), MoveFlag.DOUBLE_PAWN))
-        ctrl.submit_move(Move(parse_square("g2"), parse_square("g4"), MoveFlag.DOUBLE_PAWN))
+        ctrl.submit_move(
+            Move(parse_square("e7"), parse_square("e5"), MoveFlag.DOUBLE_PAWN)
+        )
+        ctrl.submit_move(
+            Move(parse_square("g2"), parse_square("g4"), MoveFlag.DOUBLE_PAWN)
+        )
         ctrl.submit_move(Move(parse_square("d8"), parse_square("h4")))
         assert results == [GameResult.BLACK_WINS]
 

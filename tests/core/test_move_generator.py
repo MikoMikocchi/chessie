@@ -6,7 +6,7 @@ Reference values: https://www.chessprogramming.org/Perft_Results
 import pytest
 
 from chessie.core.move_generator import MoveGenerator
-from chessie.core.notation import position_from_fen, STARTING_FEN
+from chessie.core.notation import STARTING_FEN, position_from_fen
 from chessie.core.position import Position
 
 

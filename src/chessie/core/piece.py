@@ -37,9 +37,7 @@ _UNICODE: dict[tuple[Color, PieceType], str] = {
     (Color.BLACK, PieceType.KING): "♚",
 }
 
-_FEN_CHARS: dict[tuple[Color, PieceType], str] = {
-    v: k for k, v in _CHAR_MAP.items()
-}
+_FEN_CHARS: dict[tuple[Color, PieceType], str] = {v: k for k, v in _CHAR_MAP.items()}
 
 
 @dataclass(frozen=True, slots=True)

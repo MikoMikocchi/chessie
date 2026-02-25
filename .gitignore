@@ -36,7 +36,7 @@ coverage.xml
 .ruff_cache/
 
 # IDEs
-.vscode/
+.vscode/*
 .idea/
 *.swp
 *.swo
@@ -53,3 +53,13 @@ coverage.xml
 # Build artifacts
 *.so
 *.dylib
+
+# C / C++ build artifacts
+*.o
+*.a
+*.out
+compile_commands.json
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+_deps/

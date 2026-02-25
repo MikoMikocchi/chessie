@@ -6,10 +6,24 @@ from chessie.core.board import Board
 from chessie.core.enums import Color, PieceType
 from chessie.core.piece import Piece
 from chessie.core.types import (
-    A1, B1, C1, D1, E1, F1, G1, H1,
+    A1,
+    A8,
+    B1,
+    B8,
+    C1,
+    C8,
+    D1,
+    D8,
+    E1,
     E2,
-    A8, B8, C8, D8, E8, F8, G8, H8,
     E4,
+    E8,
+    F1,
+    F8,
+    G1,
+    G8,
+    H1,
+    H8,
 )
 
 
@@ -25,9 +39,14 @@ class TestBoardInitial:
     def test_white_back_rank(self) -> None:
         board = Board.initial()
         expected = [
-            (A1, PieceType.ROOK), (B1, PieceType.KNIGHT), (C1, PieceType.BISHOP),
-            (D1, PieceType.QUEEN), (E1, PieceType.KING), (F1, PieceType.BISHOP),
-            (G1, PieceType.KNIGHT), (H1, PieceType.ROOK),
+            (A1, PieceType.ROOK),
+            (B1, PieceType.KNIGHT),
+            (C1, PieceType.BISHOP),
+            (D1, PieceType.QUEEN),
+            (E1, PieceType.KING),
+            (F1, PieceType.BISHOP),
+            (G1, PieceType.KNIGHT),
+            (H1, PieceType.ROOK),
         ]
         for sq, pt in expected:
             assert board[sq] == Piece(Color.WHITE, pt), f"Mismatch at square {sq}"
@@ -35,9 +54,14 @@ class TestBoardInitial:
     def test_black_back_rank(self) -> None:
         board = Board.initial()
         expected = [
-            (A8, PieceType.ROOK), (B8, PieceType.KNIGHT), (C8, PieceType.BISHOP),
-            (D8, PieceType.QUEEN), (E8, PieceType.KING), (F8, PieceType.BISHOP),
-            (G8, PieceType.KNIGHT), (H8, PieceType.ROOK),
+            (A8, PieceType.ROOK),
+            (B8, PieceType.KNIGHT),
+            (C8, PieceType.BISHOP),
+            (D8, PieceType.QUEEN),
+            (E8, PieceType.KING),
+            (F8, PieceType.BISHOP),
+            (G8, PieceType.KNIGHT),
+            (H8, PieceType.ROOK),
         ]
         for sq, pt in expected:
             assert board[sq] == Piece(Color.BLACK, pt), f"Mismatch at square {sq}"

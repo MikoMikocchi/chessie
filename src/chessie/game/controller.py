@@ -6,8 +6,8 @@ Emits events via simple callbacks so the UI / tests can subscribe.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable
 
 from chessie.core.enums import Color, GameResult
 from chessie.core.move import Move
@@ -22,13 +22,12 @@ from chessie.game.interfaces import (
 )
 from chessie.game.state import GameState
 
-
 # ── Event definitions ────────────────────────────────────────────────────────
 
-MoveCallback = Callable[[Move, str, "GameState"], None]    # move, san, state
+MoveCallback = Callable[[Move, str, "GameState"], None]  # move, san, state
 GameOverCallback = Callable[[GameResult], None]
 PhaseCallback = Callable[[GamePhase], None]
-ClockTickCallback = Callable[[Color, float], None]         # color, remaining
+ClockTickCallback = Callable[[Color, float], None]  # color, remaining
 
 
 @dataclass

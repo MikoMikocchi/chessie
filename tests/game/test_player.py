@@ -1,7 +1,7 @@
 """Tests for Player implementations."""
 
 from chessie.core.enums import Color
-from chessie.core.notation import position_from_fen, STARTING_FEN
+from chessie.core.notation import STARTING_FEN, position_from_fen
 from chessie.game.player import AIPlayer, HumanPlayer
 
 
