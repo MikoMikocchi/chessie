@@ -14,14 +14,25 @@ if TYPE_CHECKING:
 # ── Direction tables ─────────────────────────────────────────────────────────
 
 KNIGHT_OFFSETS: list[tuple[int, int]] = [
-    (-2, -1), (-2, 1), (-1, -2), (-1, 2),
-    (1, -2), (1, 2), (2, -1), (2, 1),
+    (-2, -1),
+    (-2, 1),
+    (-1, -2),
+    (-1, 2),
+    (1, -2),
+    (1, 2),
+    (2, -1),
+    (2, 1),
 ]
 
 KING_OFFSETS: list[tuple[int, int]] = [
-    (-1, -1), (-1, 0), (-1, 1),
-    (0, -1),           (0, 1),
-    (1, -1),  (1, 0),  (1, 1),
+    (-1, -1),
+    (-1, 0),
+    (-1, 1),
+    (0, -1),
+    (0, 1),
+    (1, -1),
+    (1, 0),
+    (1, 1),
 ]
 
 BISHOP_DIRS: list[tuple[int, int]] = [(-1, -1), (-1, 1), (1, -1), (1, 1)]
@@ -96,7 +107,11 @@ class MoveGenerator:
             af, ar = f + df, r + pawn_rank_dir
             if 0 <= af < 8 and 0 <= ar < 8:
                 p = self._board[make_square(af, ar)]
-                if p is not None and p.color == by_color and p.piece_type == PieceType.PAWN:
+                if (
+                    p is not None
+                    and p.color == by_color
+                    and p.piece_type == PieceType.PAWN
+                ):
                     return True
 
         # ── Knights ──────────────────────────────────────────────────
@@ -104,7 +119,11 @@ class MoveGenerator:
             af, ar = f + df, r + dr
             if 0 <= af < 8 and 0 <= ar < 8:
                 p = self._board[make_square(af, ar)]
-                if p is not None and p.color == by_color and p.piece_type == PieceType.KNIGHT:
+                if (
+                    p is not None
+                    and p.color == by_color
+                    and p.piece_type == PieceType.KNIGHT
+                ):
                     return True
 
         # ── King ─────────────────────────────────────────────────────
@@ -112,7 +131,11 @@ class MoveGenerator:
             af, ar = f + df, r + dr
             if 0 <= af < 8 and 0 <= ar < 8:
                 p = self._board[make_square(af, ar)]
-                if p is not None and p.color == by_color and p.piece_type == PieceType.KING:
+                if (
+                    p is not None
+                    and p.color == by_color
+                    and p.piece_type == PieceType.KING
+                ):
                     return True
 
         # ── Bishops / Queens (diagonals) ─────────────────────────────
@@ -121,7 +144,10 @@ class MoveGenerator:
             while 0 <= af < 8 and 0 <= ar < 8:
                 p = self._board[make_square(af, ar)]
                 if p is not None:
-                    if p.color == by_color and p.piece_type in (PieceType.BISHOP, PieceType.QUEEN):
+                    if p.color == by_color and p.piece_type in (
+                        PieceType.BISHOP,
+                        PieceType.QUEEN,
+                    ):
                         return True
                     break
                 af += df
@@ -133,7 +159,10 @@ class MoveGenerator:
             while 0 <= af < 8 and 0 <= ar < 8:
                 p = self._board[make_square(af, ar)]
                 if p is not None:
-                    if p.color == by_color and p.piece_type in (PieceType.ROOK, PieceType.QUEEN):
+                    if p.color == by_color and p.piece_type in (
+                        PieceType.ROOK,
+                        PieceType.QUEEN,
+                    ):
                         return True
                     break
                 af += df
@@ -157,7 +186,12 @@ class MoveGenerator:
         to_sq = make_square(f, to_r)
         if self._board.is_empty(to_sq):
             if to_r == promo_rank:
-                for pt in (PieceType.QUEEN, PieceType.ROOK, PieceType.BISHOP, PieceType.KNIGHT):
+                for pt in (
+                    PieceType.QUEEN,
+                    PieceType.ROOK,
+                    PieceType.BISHOP,
+                    PieceType.KNIGHT,
+                ):
                     moves.append(Move(sq, to_sq, MoveFlag.PROMOTION, pt))
             else:
                 moves.append(Move(sq, to_sq))
@@ -176,7 +210,12 @@ class MoveGenerator:
             target = self._board[cap_sq]
             if target is not None and target.color != color:
                 if to_r == promo_rank:
-                    for pt in (PieceType.QUEEN, PieceType.ROOK, PieceType.BISHOP, PieceType.KNIGHT):
+                    for pt in (
+                        PieceType.QUEEN,
+                        PieceType.ROOK,
+                        PieceType.BISHOP,
+                        PieceType.KNIGHT,
+                    ):
                         moves.append(Move(sq, cap_sq, MoveFlag.PROMOTION, pt))
                 else:
                     moves.append(Move(sq, cap_sq))
@@ -243,12 +282,13 @@ class MoveGenerator:
         if self._pos.castling & ks:
             f_sq = make_square(5, rank)
             g_sq = make_square(6, rank)
-            if self._board.is_empty(f_sq) and self._board.is_empty(g_sq):
-                if (
-                    not self.is_square_attacked(f_sq, color.opposite)
-                    and not self.is_square_attacked(g_sq, color.opposite)
-                ):
-                    moves.append(Move(king_sq, g_sq, MoveFlag.CASTLE_KINGSIDE))
+        if (
+            self._board.is_empty(f_sq)
+            and self._board.is_empty(g_sq)
+            and not self.is_square_attacked(f_sq, color.opposite)
+            and not self.is_square_attacked(g_sq, color.opposite)
+        ):
+            moves.append(Move(king_sq, g_sq, MoveFlag.CASTLE_KINGSIDE))
 
         # ── Queenside (O-O-O) ────────────────────────────────────────
         qs = (
@@ -260,13 +300,12 @@ class MoveGenerator:
             b_sq = make_square(1, rank)
             c_sq = make_square(2, rank)
             d_sq = make_square(3, rank)
+            # queenside path squares must be clear and safe
             if (
                 self._board.is_empty(b_sq)
                 and self._board.is_empty(c_sq)
                 and self._board.is_empty(d_sq)
+                and not self.is_square_attacked(c_sq, color.opposite)
+                and not self.is_square_attacked(d_sq, color.opposite)
             ):
-                if (
-                    not self.is_square_attacked(c_sq, color.opposite)
-                    and not self.is_square_attacked(d_sq, color.opposite)
-                ):
-                    moves.append(Move(king_sq, c_sq, MoveFlag.CASTLE_QUEENSIDE))
+                moves.append(Move(king_sq, c_sq, MoveFlag.CASTLE_QUEENSIDE))
