@@ -282,13 +282,13 @@ class MoveGenerator:
         if self._pos.castling & ks:
             f_sq = make_square(5, rank)
             g_sq = make_square(6, rank)
-        if (
-            self._board.is_empty(f_sq)
-            and self._board.is_empty(g_sq)
-            and not self.is_square_attacked(f_sq, color.opposite)
-            and not self.is_square_attacked(g_sq, color.opposite)
-        ):
-            moves.append(Move(king_sq, g_sq, MoveFlag.CASTLE_KINGSIDE))
+            if (
+                self._board.is_empty(f_sq)
+                and self._board.is_empty(g_sq)
+                and not self.is_square_attacked(f_sq, color.opposite)
+                and not self.is_square_attacked(g_sq, color.opposite)
+            ):
+                moves.append(Move(king_sq, g_sq, MoveFlag.CASTLE_KINGSIDE))
 
         # ── Queenside (O-O-O) ────────────────────────────────────────
         qs = (
