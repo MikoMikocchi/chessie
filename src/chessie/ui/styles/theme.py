@@ -13,22 +13,22 @@ class BoardTheme:
 
     light_square: QColor
     dark_square: QColor
-    highlight_from: QColor     # selected piece origin
-    highlight_to: QColor       # legal move targets
-    highlight_check: QColor    # king in check
-    last_move_from: QColor     # last move origin
-    last_move_to: QColor       # last move destination
-    coord_light: QColor        # coordinate text on dark squares
-    coord_dark: QColor         # coordinate text on light squares
+    highlight_from: QColor  # selected piece origin
+    highlight_to: QColor  # legal move targets
+    highlight_check: QColor  # king in check
+    last_move_from: QColor  # last move origin
+    last_move_to: QColor  # last move destination
+    coord_light: QColor  # coordinate text on dark squares
+    coord_dark: QColor  # coordinate text on light squares
 
     @classmethod
     def default(cls) -> BoardTheme:
         return cls(
-            light_square=QColor(240, 217, 181),      # tan
-            dark_square=QColor(181, 136, 99),         # brown
+            light_square=QColor(240, 217, 181),  # tan
+            dark_square=QColor(181, 136, 99),  # brown
             highlight_from=QColor(255, 255, 0, 100),  # yellow transparent
-            highlight_to=QColor(0, 0, 0, 40),         # dark dot overlay
-            highlight_check=QColor(255, 0, 0, 120),   # red transparent
+            highlight_to=QColor(0, 0, 0, 40),  # dark dot overlay
+            highlight_check=QColor(255, 0, 0, 120),  # red transparent
             last_move_from=QColor(155, 199, 0, 105),  # green
             last_move_to=QColor(155, 199, 0, 105),
             coord_light=QColor(181, 136, 99),

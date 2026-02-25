@@ -50,7 +50,10 @@ class Rules:
         if total == 3:
             for sq in white + black:
                 p = board[sq]
-                if p is not None and p.piece_type in (PieceType.KNIGHT, PieceType.BISHOP):
+                if p is not None and p.piece_type in (
+                    PieceType.KNIGHT,
+                    PieceType.BISHOP,
+                ):
                     return True
 
         # K+B vs K+B with same-colour bishops

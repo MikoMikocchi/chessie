@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QRadioButton,
     QVBoxLayout,
+    QWidget,
 )
 
 from chessie.core.enums import Color
@@ -47,7 +48,7 @@ class NewGameDialog(QDialog):
         "Unlimited": TimeControl.unlimited(),
     }
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("New Game")
         self.setModal(True)
@@ -119,7 +120,7 @@ class NewGameDialog(QDialog):
         return self._settings
 
     @staticmethod
-    def ask(parent=None) -> _NewGameSettings | None:
+    def ask(parent: QWidget | None = None) -> _NewGameSettings | None:
         dlg = NewGameDialog(parent)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             return dlg.settings

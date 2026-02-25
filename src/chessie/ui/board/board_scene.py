@@ -76,6 +76,10 @@ class BoardScene(QGraphicsScene):
         if self._position:
             self._sync_pieces()
 
+    def is_flipped(self) -> bool:
+        """Return whether the board is currently flipped."""
+        return self._flipped
+
     def set_theme(self, theme: BoardTheme) -> None:
         self._theme = theme
         self._draw_board()

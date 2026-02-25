@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
@@ -12,7 +14,7 @@ from chessie.core.enums import Color
 class _SingleClock(QLabel):
     """Display for one player's time."""
 
-    def __init__(self, color: Color, parent=None) -> None:
+    def __init__(self, color: Color, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._color = color
         self._active = False
@@ -63,7 +65,7 @@ class _SingleClock(QLabel):
 class ClockWidget(QWidget):
     """Combined dual clock widget."""
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
         self._white_clock = _SingleClock(Color.WHITE)
@@ -93,9 +95,9 @@ class ClockWidget(QWidget):
         self._timer = QTimer(self)
         self._timer.setInterval(100)
         self._timer.timeout.connect(self._tick)
-        self._get_remaining: callable | None = None
+        self._get_remaining: Callable[[], tuple[float, float]] | None = None
 
-    def start(self, get_remaining: callable) -> None:
+    def start(self, get_remaining: Callable[[], tuple[float, float]]) -> None:
         """Start updating. *get_remaining* returns (white_sec, black_sec)."""
         self._get_remaining = get_remaining
         self._timer.start()

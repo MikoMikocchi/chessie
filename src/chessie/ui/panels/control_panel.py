@@ -16,7 +16,7 @@ class ControlPanel(QWidget):
     undo_clicked = pyqtSignal()
     flip_clicked = pyqtSignal()
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._setup_ui()
 

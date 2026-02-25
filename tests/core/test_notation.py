@@ -51,7 +51,9 @@ class TestFenParsing:
     def test_partial_castling(self) -> None:
         fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w Kq - 0 1"
         pos = position_from_fen(fen)
-        assert pos.castling == (CastlingRights.WHITE_KINGSIDE | CastlingRights.BLACK_QUEENSIDE)
+        assert pos.castling == (
+            CastlingRights.WHITE_KINGSIDE | CastlingRights.BLACK_QUEENSIDE
+        )
 
     def test_invalid_fen_raises(self) -> None:
         with pytest.raises(ValueError):

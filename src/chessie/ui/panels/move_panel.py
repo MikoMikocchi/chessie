@@ -19,7 +19,7 @@ from chessie.game.state import MoveRecord
 class MovePanel(QWidget):
     """Displays the game's move history in standard notation."""
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._records: list[MoveRecord] = []
         self._setup_ui()

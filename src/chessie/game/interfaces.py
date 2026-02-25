@@ -25,7 +25,7 @@ class GamePhase(IntEnum):
 
     NOT_STARTED = auto()
     AWAITING_MOVE = auto()
-    THINKING = auto()       # AI is computing
+    THINKING = auto()  # AI is computing
     GAME_OVER = auto()
 
 

@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
 from chessie.core.enums import Color, GameResult
 from chessie.core.move import Move
 from chessie.game.controller import GameController
-from chessie.game.interfaces import GamePhase, TimeControl
+from chessie.game.interfaces import GamePhase, IPlayer, TimeControl
 from chessie.game.player import AIPlayer, HumanPlayer
 from chessie.game.state import GameState
 from chessie.ui.board.board_view import BoardView
@@ -144,6 +144,8 @@ class MainWindow(QMainWindow):
         if settings is None:
             return
 
+        white: IPlayer
+        black: IPlayer
         if settings.opponent == "human":
             white = HumanPlayer(Color.WHITE, "White")
             black = HumanPlayer(Color.BLACK, "Black")
@@ -181,13 +183,12 @@ class MainWindow(QMainWindow):
         # Clock
         clock = self._controller.clock
         if clock is not None and not clock.is_unlimited:
-            tc = clock
-            self._clock_widget.reset(tc.remaining(Color.WHITE))
+            self._clock_widget.reset(clock.remaining(Color.WHITE))
             self._clock_widget.set_active(state.side_to_move)
             self._clock_widget.start(
                 lambda: (
-                    self._controller.clock.remaining(Color.WHITE),
-                    self._controller.clock.remaining(Color.BLACK),
+                    clock.remaining(Color.WHITE),
+                    clock.remaining(Color.BLACK),
                 )
             )
         else:
@@ -240,7 +241,7 @@ class MainWindow(QMainWindow):
 
     def _on_flip(self) -> None:
         scene = self._board_view.board_scene
-        scene.set_flipped(not scene._flipped)
+        scene.set_flipped(not scene.is_flipped())
 
     # ── Game event callbacks ─────────────────────────────────────────────
 

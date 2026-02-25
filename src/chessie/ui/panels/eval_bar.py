@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QColor, QFont, QPainter
+from PyQt6.QtGui import QColor, QFont, QPainter, QPaintEvent
 from PyQt6.QtWidgets import QSizePolicy, QWidget
 
 
@@ -14,7 +14,7 @@ class EvalBar(QWidget):
     Black advantage → black fills from top.
     """
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._eval_cp: float = 0.0  # centipawns
         self._mate: int | None = None
@@ -39,7 +39,7 @@ class EvalBar(QWidget):
         self._mate = None
         self.update()
 
-    def paintEvent(self, event) -> None:
+    def paintEvent(self, event: QPaintEvent | None) -> None:
         h = self.height()
         w = self.width()
 
