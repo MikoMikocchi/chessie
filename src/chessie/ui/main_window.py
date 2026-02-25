@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from PyQt6.QtGui import QAction
+from collections.abc import Callable
+from typing import TypeVar
+
+from PyQt6.QtGui import QAction, QCloseEvent
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -25,6 +28,8 @@ from chessie.ui.panels.clock_widget import ClockWidget
 from chessie.ui.panels.control_panel import ControlPanel
 from chessie.ui.panels.eval_bar import EvalBar
 from chessie.ui.panels.move_panel import MovePanel
+
+TCallback = TypeVar("TCallback", bound=Callable[..., None])
 
 
 class MainWindow(QMainWindow):
@@ -125,10 +130,30 @@ class MainWindow(QMainWindow):
         self._control_panel.flip_clicked.connect(self._on_flip)
 
     def _connect_game_events(self) -> None:
-        """Subscribe to GameController callbacks."""
-        self._controller.events.on_move.append(self._on_game_move)
-        self._controller.events.on_game_over.append(self._on_game_over)
-        self._controller.events.on_phase_changed.append(self._on_phase_changed)
+        """Subscribe to GameController callbacks (idempotent)."""
+        events = self._controller.events
+        self._replace_callback(events.on_move, self._on_game_move)
+        self._replace_callback(events.on_game_over, self._on_game_over)
+        self._replace_callback(events.on_phase_changed, self._on_phase_changed)
+
+    def _disconnect_game_events(self) -> None:
+        """Detach this window from GameController callbacks."""
+        events = self._controller.events
+        self._remove_callback(events.on_move, self._on_game_move)
+        self._remove_callback(events.on_game_over, self._on_game_over)
+        self._remove_callback(events.on_phase_changed, self._on_phase_changed)
+
+    @staticmethod
+    def _replace_callback(
+        callbacks: list[TCallback],
+        callback: TCallback,
+    ) -> None:
+        callbacks[:] = [cb for cb in callbacks if cb != callback]
+        callbacks.append(callback)
+
+    @staticmethod
+    def _remove_callback(callbacks: list[TCallback], callback: TCallback) -> None:
+        callbacks[:] = [cb for cb in callbacks if cb != callback]
 
     # ── Game lifecycle ───────────────────────────────────────────────────
 
@@ -136,6 +161,7 @@ class MainWindow(QMainWindow):
         """Start a quick human-vs-human unlimited game."""
         white = HumanPlayer(Color.WHITE, "White")
         black = HumanPlayer(Color.BLACK, "Black")
+        self._connect_game_events()
         self._controller.new_game(white, black, TimeControl.unlimited())
         self._after_new_game()
 
@@ -168,8 +194,13 @@ class MainWindow(QMainWindow):
                 )
                 black = HumanPlayer(Color.BLACK, "You")
 
+        self._connect_game_events()
         self._controller.new_game(white, black, settings.time_control)
         self._after_new_game()
+
+    def closeEvent(self, event: QCloseEvent | None) -> None:
+        self._disconnect_game_events()
+        super().closeEvent(event)
 
     def _after_new_game(self) -> None:
         """Sync UI after a new game starts."""
