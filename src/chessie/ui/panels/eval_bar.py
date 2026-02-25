@@ -67,7 +67,7 @@ class EvalBar(QWidget):
             text = f"{pawns:+.1f}"
 
         painter.setPen(QColor(120, 120, 120))
-        font = QFont("Helvetica Neue", 8)
+        font = QFont("Adwaita Sans", 8)
         painter.setFont(font)
         painter.drawText(0, 0, w, 18, Qt.AlignmentFlag.AlignCenter, text)
 

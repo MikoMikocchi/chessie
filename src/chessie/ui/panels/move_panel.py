@@ -29,7 +29,7 @@ class MovePanel(QWidget):
         layout.setContentsMargins(4, 4, 4, 4)
 
         header = QLabel("Moves")
-        header.setFont(QFont("Helvetica Neue", 12, QFont.Weight.Bold))
+        header.setFont(QFont("Adwaita Sans", 12, QFont.Weight.Bold))
         header.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(header)
 

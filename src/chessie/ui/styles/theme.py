@@ -59,7 +59,7 @@ QMainWindow {
 
 QLabel {
     color: #e0e0e0;
-    font-family: "Helvetica Neue", "Helvetica Neue", sans-serif;
+    font-family: "Adwaita Sans", "Helvetica Neue", sans-serif;
 }
 
 QListWidget {

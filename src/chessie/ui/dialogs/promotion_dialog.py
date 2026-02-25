@@ -35,7 +35,7 @@ class PromotionDialog(QDialog):
         layout = QVBoxLayout(self)
         label = QLabel("Choose promotion piece:")
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        label.setFont(QFont("Helvetica Neue", 11))
+        label.setFont(QFont("Adwaita Sans", 11))
         layout.addWidget(label)
 
         btn_row = QHBoxLayout()

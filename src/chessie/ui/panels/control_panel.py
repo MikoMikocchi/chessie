@@ -25,7 +25,7 @@ class ControlPanel(QWidget):
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(6)
 
-        btn_font = QFont("Helvetica Neue", 10)
+        btn_font = QFont("Adwaita Sans", 10)
 
         row1 = QHBoxLayout()
         self._btn_new = QPushButton("New Game")

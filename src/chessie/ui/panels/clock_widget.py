@@ -78,14 +78,14 @@ class ClockWidget(QWidget):
         w_box = QVBoxLayout()
         w_label = QLabel("White")
         w_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        w_label.setFont(QFont("Helvetica Neue", 9))
+        w_label.setFont(QFont("Adwaita Sans", 9))
         w_box.addWidget(w_label)
         w_box.addWidget(self._white_clock)
 
         b_box = QVBoxLayout()
         b_label = QLabel("Black")
         b_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        b_label.setFont(QFont("Helvetica Neue", 9))
+        b_label.setFont(QFont("Adwaita Sans", 9))
         b_box.addWidget(b_label)
         b_box.addWidget(self._black_clock)
 

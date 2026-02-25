@@ -124,7 +124,7 @@ class BoardScene(QGraphicsScene):
         self._coord_items.clear()
 
         t = self.TILE
-        font = QFont("Helvetica Neue", max(9, t // 8))
+        font = QFont("Adwaita Sans", max(9, t // 8))
 
         for sq in range(64):
             f, r = file_of(sq), rank_of(sq)
