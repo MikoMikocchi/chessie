@@ -4,39 +4,51 @@ from __future__ import annotations
 
 from PyQt6.QtCore import QPointF, Qt
 from PyQt6.QtGui import QCursor
-from PyQt6.QtWidgets import QGraphicsPixmapItem
+from PyQt6.QtSvgWidgets import QGraphicsSvgItem
+from PyQt6.QtWidgets import QGraphicsItem
 
 from chessie.core.piece import Piece
 from chessie.core.types import Square
-from chessie.ui.resources import piece_pixmap
+from chessie.ui.resources import piece_renderer
 
 
-class PieceItem(QGraphicsPixmapItem):
+class PieceItem(QGraphicsSvgItem):
     """A single chess piece on the board.
 
     Stores its logical *square* and supports drag & drop.
     """
+
+    _MARGIN_RATIO = 0.03
 
     def __init__(self, piece: Piece, square: Square, tile_size: int) -> None:
         super().__init__()
         self.piece = piece
         self.square = square
         self._tile_size = tile_size
+        self._margin = 0.0
         self._drag_origin: QPointF | None = None
 
-        self.setPixmap(piece_pixmap(piece, tile_size))
-        self.setFlag(QGraphicsPixmapItem.GraphicsItemFlag.ItemIsMovable, False)
+        self.setSharedRenderer(piece_renderer(piece))
+        self.setTransformOriginPoint(0.0, 0.0)
+        self.setCacheMode(QGraphicsItem.CacheMode.NoCache)
+        self._update_size(tile_size)
+
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.setZValue(1)
 
     def set_tile_size(self, size: int) -> None:
         """Update tile size and re-render."""
-        self._tile_size = size
-        self.setPixmap(piece_pixmap(self.piece, size))
+        self._update_size(size)
+
+    @property
+    def margin(self) -> float:
+        """Inner margin to keep the piece away from tile edges."""
+        return self._margin
 
     def enable_drag(self, enabled: bool) -> None:
         """Allow / disallow dragging."""
-        self.setFlag(QGraphicsPixmapItem.GraphicsItemFlag.ItemIsMovable, enabled)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, enabled)
         if enabled:
             self.setCursor(QCursor(Qt.CursorShape.OpenHandCursor))
         else:
@@ -64,3 +76,17 @@ class PieceItem(QGraphicsPixmapItem):
         self.setZValue(1)
         self.setCursor(QCursor(Qt.CursorShape.OpenHandCursor))
         self.setOpacity(1.0)
+
+    def _update_size(self, size: int) -> None:
+        self._tile_size = size
+        self._margin = float(size) * self._MARGIN_RATIO
+        draw_size = max(float(size) - 2.0 * self._margin, 1.0)
+
+        renderer = self.renderer()
+        if renderer is None:
+            return
+        bounds = self.boundingRect()
+        width = float(bounds.width()) or float(renderer.defaultSize().width()) or 1.0
+        height = float(bounds.height()) or float(renderer.defaultSize().height()) or 1.0
+        scale = min(draw_size / width, draw_size / height)
+        self.setScale(scale)

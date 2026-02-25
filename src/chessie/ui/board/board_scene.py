@@ -188,7 +188,7 @@ class BoardScene(QGraphicsScene):
                 item = PieceItem(piece, sq, t)
                 f, r = file_of(sq), rank_of(sq)
                 vf, vr = self._visual_coords(f, r)
-                item.setPos(vf * t, vr * t)
+                item.setPos(vf * t + item.margin, vr * t + item.margin)
                 self.addItem(item)
                 self._piece_items[sq] = item
 

@@ -1,4 +1,4 @@
-"""Piece rendering — loads SVG assets and caches scaled QPixmaps."""
+"""Piece rendering helpers for chess SVG assets."""
 
 from __future__ import annotations
 
@@ -46,13 +46,18 @@ def _get_renderer(color: Color, piece_type: PieceType) -> QSvgRenderer:
     return _renderers[key]
 
 
+def piece_renderer(piece: Piece) -> QSvgRenderer:
+    """Return a cached SVG renderer for *piece*."""
+    return _get_renderer(piece.color, piece.piece_type)
+
+
 @lru_cache(maxsize=128)
 def piece_pixmap(piece: Piece, size: int) -> QPixmap:
     """Render a chess piece SVG as a *size* × *size* QPixmap."""
     from PyQt6.QtCore import QRectF
     from PyQt6.QtGui import QImage, QPainter
 
-    renderer = _get_renderer(piece.color, piece.piece_type)
+    renderer = piece_renderer(piece)
 
     image = QImage(size, size, QImage.Format.Format_ARGB32_Premultiplied)
     image.fill(Qt.GlobalColor.transparent)
