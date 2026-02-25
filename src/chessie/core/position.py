@@ -36,6 +36,8 @@ class Position:
         "halfmove_clock",
         "fullmove_number",
         "_history",
+        "_key_stack",
+        "_key_counts",
     )
 
     def __init__(
@@ -54,6 +56,14 @@ class Position:
         self.halfmove_clock = halfmove_clock
         self.fullmove_number = fullmove_number
         self._history: list[_PositionState] = []
+        key = self._position_key()
+        self._key_stack: list[
+            tuple[tuple[Piece | None, ...], Color, CastlingRights, Square | None]
+        ] = [key]
+        self._key_counts: dict[
+            tuple[tuple[Piece | None, ...], Color, CastlingRights, Square | None],
+            int,
+        ] = {key: 1}
 
     # ── Core move operations ─────────────────────────────────────────────
 
@@ -121,10 +131,19 @@ class Position:
             self.fullmove_number += 1
 
         self.side_to_move = self.side_to_move.opposite
+        key = self._position_key()
+        self._key_stack.append(key)
+        self._key_counts[key] = self._key_counts.get(key, 0) + 1
 
     def unmake_move(self, move: Move) -> None:
         """Undo the last :meth:`make_move`."""
         state = self._history.pop()
+        key = self._key_stack.pop()
+        key_count = self._key_counts[key] - 1
+        if key_count:
+            self._key_counts[key] = key_count
+        else:
+            del self._key_counts[key]
 
         self.side_to_move = self.side_to_move.opposite
         if self.side_to_move == Color.BLACK:
@@ -184,11 +203,29 @@ class Position:
 
     def copy(self) -> Position:
         """Deep copy without history."""
-        return Position(
+        pos = Position(
             board=self.board.copy(),
             side_to_move=self.side_to_move,
             castling=self.castling,
             en_passant=self.en_passant,
             halfmove_clock=self.halfmove_clock,
             fullmove_number=self.fullmove_number,
+        )
+        pos._key_stack = self._key_stack.copy()
+        pos._key_counts = self._key_counts.copy()
+        return pos
+
+    def repetition_count(self) -> int:
+        """How many times the current position key occurred in game history."""
+        key = self._key_stack[-1]
+        return self._key_counts.get(key, 0)
+
+    def _position_key(
+        self,
+    ) -> tuple[tuple[Piece | None, ...], Color, CastlingRights, Square | None]:
+        return (
+            tuple(self.board[sq] for sq in range(64)),
+            self.side_to_move,
+            self.castling,
+            self.en_passant,
         )

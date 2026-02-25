@@ -3,9 +3,20 @@
 from __future__ import annotations
 
 import time
+from dataclasses import dataclass
 
 from chessie.core.enums import Color
 from chessie.game.interfaces import IClock, TimeControl
+
+
+@dataclass(frozen=True, slots=True)
+class ClockSnapshot:
+    """Serializable clock state used to restore time after undo."""
+
+    white_remaining: float
+    black_remaining: float
+    active_color: Color | None
+    is_running: bool
 
 
 class Clock(IClock):
@@ -48,7 +59,8 @@ class Clock(IClock):
         """Stop current player's clock, start the other player's."""
         if self._active_color is None:
             return
-        self._consume_elapsed()
+        if self._running:
+            self._consume_elapsed()
         self._active_color = self._active_color.opposite
         self._last_tick = time.monotonic()
 
@@ -81,6 +93,23 @@ class Clock(IClock):
     def set_remaining(self, color: Color, seconds: float) -> None:
         """Manually override remaining time (for testing / UI override)."""
         self._remaining[color] = seconds
+
+    def snapshot(self) -> ClockSnapshot:
+        """Capture current clock state (including active side and running flag)."""
+        return ClockSnapshot(
+            white_remaining=self.remaining(Color.WHITE),
+            black_remaining=self.remaining(Color.BLACK),
+            active_color=self._active_color,
+            is_running=self._running,
+        )
+
+    def restore(self, snapshot: ClockSnapshot) -> None:
+        """Restore clock state previously captured with :meth:`snapshot`."""
+        self._remaining[Color.WHITE] = snapshot.white_remaining
+        self._remaining[Color.BLACK] = snapshot.black_remaining
+        self._active_color = snapshot.active_color
+        self._running = snapshot.is_running and snapshot.active_color is not None
+        self._last_tick = time.monotonic()
 
     # ── Internal ─────────────────────────────────────────────────────────
 

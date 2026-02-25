@@ -35,47 +35,89 @@ _SAN_PIECE_REV: dict[str, PieceType] = {v: k for k, v in _SAN_PIECE.items()}
 def position_from_fen(fen: str) -> Position:
     """Parse a FEN string into a :class:`Position`."""
     parts = fen.split()
-    if len(parts) < 4:
-        raise ValueError(f"Invalid FEN (need ≥ 4 fields): {fen!r}")
+    if not (4 <= len(parts) <= 6):
+        raise ValueError(f"Invalid FEN (need 4-6 fields): {fen!r}")
+
+    placement, side_part, castling_part, ep_part = parts[:4]
 
     # 1. Piece placement
+    ranks = placement.split("/")
+    if len(ranks) != 8:
+        raise ValueError(f"Invalid FEN board (must contain 8 ranks): {fen!r}")
     board = Board()
-    rank = 7
-    file = 0
-    for ch in parts[0]:
-        if ch == "/":
-            rank -= 1
-            file = 0
-        elif ch.isdigit():
-            file += int(ch)
-        else:
-            board[make_square(file, rank)] = Piece.from_char(ch)
-            file += 1
+    for rank_idx, rank_text in enumerate(ranks):
+        rank = 7 - rank_idx
+        file = 0
+        for ch in rank_text:
+            if ch.isdigit():
+                step = int(ch)
+                if not (1 <= step <= 8):
+                    raise ValueError(f"Invalid FEN digit {ch!r}: {fen!r}")
+                file += step
+            else:
+                if file >= 8:
+                    raise ValueError(f"Invalid FEN rank width: {fen!r}")
+                board[make_square(file, rank)] = Piece.from_char(ch)
+                file += 1
+            if file > 8:
+                raise ValueError(f"Invalid FEN rank width: {fen!r}")
+        if file != 8:
+            raise ValueError(f"Invalid FEN rank width: {fen!r}")
 
     # 2. Side to move
-    side = Color.WHITE if parts[1] == "w" else Color.BLACK
+    if side_part == "w":
+        side = Color.WHITE
+    elif side_part == "b":
+        side = Color.BLACK
+    else:
+        raise ValueError(f"Invalid FEN side-to-move field: {side_part!r}")
 
     # 3. Castling
     castling = CastlingRights.NONE
-    if parts[2] != "-":
-        for ch in parts[2]:
-            if ch == "K":
-                castling |= CastlingRights.WHITE_KINGSIDE
-            elif ch == "Q":
-                castling |= CastlingRights.WHITE_QUEENSIDE
-            elif ch == "k":
-                castling |= CastlingRights.BLACK_KINGSIDE
-            elif ch == "q":
-                castling |= CastlingRights.BLACK_QUEENSIDE
+    if castling_part != "-":
+        rights = {
+            "K": CastlingRights.WHITE_KINGSIDE,
+            "Q": CastlingRights.WHITE_QUEENSIDE,
+            "k": CastlingRights.BLACK_KINGSIDE,
+            "q": CastlingRights.BLACK_QUEENSIDE,
+        }
+        seen: set[str] = set()
+        for ch in castling_part:
+            right = rights.get(ch)
+            if right is None:
+                raise ValueError(f"Invalid FEN castling field: {castling_part!r}")
+            if ch in seen:
+                raise ValueError(f"Invalid FEN castling field: {castling_part!r}")
+            seen.add(ch)
+            castling |= right
 
     # 4. En passant
     ep: Square | None = None
-    if parts[3] != "-":
-        ep = parse_square(parts[3])
+    if ep_part != "-":
+        ep = parse_square(ep_part)
+        ep_rank = rank_of(ep)
+        if ep_rank not in (2, 5):
+            raise ValueError(f"Invalid FEN en-passant square: {ep_part!r}")
+        expected_ep_rank = 5 if side == Color.WHITE else 2
+        if ep_rank != expected_ep_rank:
+            raise ValueError(
+                f"Invalid FEN en-passant square for side-to-move: {ep_part!r}"
+            )
 
     # 5–6. Clocks (optional)
-    halfmove = int(parts[4]) if len(parts) > 4 else 0
-    fullmove = int(parts[5]) if len(parts) > 5 else 1
+    if len(parts) > 4:
+        halfmove = int(parts[4])
+        if halfmove < 0:
+            raise ValueError(f"Invalid FEN halfmove clock: {parts[4]!r}")
+    else:
+        halfmove = 0
+
+    if len(parts) > 5:
+        fullmove = int(parts[5])
+        if fullmove < 1:
+            raise ValueError(f"Invalid FEN fullmove number: {parts[5]!r}")
+    else:
+        fullmove = 1
 
     return Position(board, side, castling, ep, halfmove, fullmove)
 

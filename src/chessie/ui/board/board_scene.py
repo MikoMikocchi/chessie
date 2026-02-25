@@ -13,11 +13,11 @@ from PyQt6.QtWidgets import (
     QGraphicsSimpleTextItem,
 )
 
-from chessie.core.enums import PieceType
 from chessie.core.move import Move
 from chessie.core.move_generator import MoveGenerator
 from chessie.core.types import Square, file_of, make_square, rank_of
 from chessie.ui.board.piece_item import PieceItem
+from chessie.ui.dialogs.promotion_dialog import PromotionDialog
 from chessie.ui.styles.theme import BoardTheme
 
 if TYPE_CHECKING:
@@ -291,8 +291,7 @@ class BoardScene(QGraphicsScene):
     def _find_legal_move(self, from_sq: Square, to_sq: Square) -> Move | None:
         """Find a single legal move from *from_sq* to *to_sq*.
 
-        If multiple (promotions), the promotion dialog will be needed.
-        For now, auto-queen.
+        If multiple candidates exist (promotion), ask the user which piece to pick.
         """
         if not self._legal_moves:
             if self._position is None:
@@ -307,9 +306,22 @@ class BoardScene(QGraphicsScene):
             return None
         if len(candidates) == 1:
             return candidates[0]
-        # Multiple → promotions, pick queen by default (dialog will override later)
-        queen_move = [m for m in candidates if m.promotion == PieceType.QUEEN]
-        return queen_move[0] if queen_move else candidates[0]
+
+        if self._position is None:
+            return None
+        piece = self._position.board[from_sq]
+        if piece is None:
+            return None
+
+        parent = self.views()[0] if self.views() else None
+        promotion = PromotionDialog.ask(piece.color, parent)
+        if promotion is None:
+            return None
+
+        for move in candidates:
+            if move.promotion == promotion:
+                return move
+        return candidates[0]
 
     # ── Coordinate helpers ───────────────────────────────────────────────
 

@@ -1,8 +1,10 @@
 """Tests for Rules: checkmate, stalemate, draw detection."""
 
 from chessie.core.enums import GameResult
+from chessie.core.move import Move
 from chessie.core.notation import position_from_fen
 from chessie.core.rules import Rules
+from chessie.core.types import parse_square
 
 
 class TestCheck:
@@ -82,6 +84,24 @@ class TestFiftyMoveRule:
     def test_triggered_at_100_halfmoves(self) -> None:
         pos = position_from_fen("8/8/4k3/8/8/4K3/8/8 w - - 100 51")
         assert Rules.is_fifty_move_rule(pos)
+
+    def test_seventy_five_move_rule(self) -> None:
+        pos = position_from_fen("8/8/4k3/8/8/4K3/8/8 w - - 150 76")
+        assert Rules.is_seventy_five_move_rule(pos)
+
+
+class TestRepetition:
+    def test_threefold_repetition_detected(self) -> None:
+        pos = position_from_fen("4k2n/8/8/8/8/8/8/4K2N w - - 0 1")
+
+        for _ in range(2):
+            pos.make_move(Move(parse_square("h1"), parse_square("f2")))
+            pos.make_move(Move(parse_square("h8"), parse_square("f7")))
+            pos.make_move(Move(parse_square("f2"), parse_square("h1")))
+            pos.make_move(Move(parse_square("f7"), parse_square("h8")))
+
+        assert Rules.is_threefold_repetition(pos)
+        assert Rules.game_result(pos) == GameResult.DRAW
 
 
 class TestGameResult:

@@ -117,3 +117,26 @@ class TestPromotion:
         pos.make_move(move)
         pos.unmake_move(move)
         assert position_to_fen(pos) == fen_before
+
+
+class TestRepetitionTracking:
+    def test_repetition_count_updates_and_restores(self) -> None:
+        pos = position_from_fen("4k2n/8/8/8/8/8/8/4K2N w - - 0 1")
+        assert pos.repetition_count() == 1
+
+        moves = [
+            Move(parse_square("h1"), parse_square("f2")),
+            Move(parse_square("h8"), parse_square("f7")),
+            Move(parse_square("f2"), parse_square("h1")),
+            Move(parse_square("f7"), parse_square("h8")),
+        ]
+
+        for m in moves:
+            pos.make_move(m)
+
+        assert pos.repetition_count() == 2
+
+        for m in reversed(moves):
+            pos.unmake_move(m)
+
+        assert pos.repetition_count() == 1

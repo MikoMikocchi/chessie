@@ -67,6 +67,14 @@ class TestGameStateMoves:
         gs.apply_move(Move(D7, D5, MoveFlag.DOUBLE_PAWN))
         assert gs.fullmove_display == 2  # move 2 now
 
+    def test_apply_move_marks_en_passant_capture(self) -> None:
+        gs = GameState()
+        gs.setup("8/8/8/3pP3/8/8/8/4K2k w - d6 0 1")
+        record = gs.apply_move(
+            Move(parse_square("e5"), parse_square("d6"), MoveFlag.EN_PASSANT)
+        )
+        assert record.was_capture
+
 
 class TestGameStateTermination:
     def test_resign_white(self) -> None:

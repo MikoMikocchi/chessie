@@ -72,6 +72,18 @@ class Rules:
         return position.halfmove_clock >= 100  # 100 half-moves = 50 full moves
 
     @staticmethod
+    def is_seventy_five_move_rule(position: Position) -> bool:
+        return position.halfmove_clock >= 150  # 150 half-moves = 75 full moves
+
+    @staticmethod
+    def is_threefold_repetition(position: Position) -> bool:
+        return position.repetition_count() >= 3
+
+    @staticmethod
+    def is_fivefold_repetition(position: Position) -> bool:
+        return position.repetition_count() >= 5
+
+    @staticmethod
     def game_result(position: Position) -> GameResult:
         """Determine the current game result."""
         gen = MoveGenerator(position)
@@ -89,7 +101,16 @@ class Rules:
         if Rules.is_insufficient_material(position):
             return GameResult.DRAW
 
+        if Rules.is_seventy_five_move_rule(position):
+            return GameResult.DRAW
+
+        if Rules.is_fivefold_repetition(position):
+            return GameResult.DRAW
+
         if Rules.is_fifty_move_rule(position):
+            return GameResult.DRAW
+
+        if Rules.is_threefold_repetition(position):
             return GameResult.DRAW
 
         return GameResult.IN_PROGRESS

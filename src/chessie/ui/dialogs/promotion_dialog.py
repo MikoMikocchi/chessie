@@ -61,8 +61,9 @@ class PromotionDialog(QDialog):
         return self._selected
 
     @staticmethod
-    def ask(color: Color, parent: QWidget | None = None) -> PieceType:
-        """Show the dialog and return the chosen piece type."""
+    def ask(color: Color, parent: QWidget | None = None) -> PieceType | None:
+        """Show the dialog and return the chosen piece type, or ``None`` on cancel."""
         dlg = PromotionDialog(color, parent)
-        dlg.exec()
-        return dlg.selected
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            return dlg.selected
+        return None

@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from chessie.core.enums import Color, GameResult
 from chessie.core.move import Move
 from chessie.core.move_generator import MoveGenerator
-from chessie.game.clock import Clock
+from chessie.game.clock import Clock, ClockSnapshot
 from chessie.game.interfaces import (
     DrawOffer,
     GamePhase,
@@ -56,6 +56,7 @@ class GameController(IGameController):
         "_state",
         "_players",
         "_clock",
+        "_clock_history",
         "events",
     )
 
@@ -63,6 +64,7 @@ class GameController(IGameController):
         self._state = GameState()
         self._players: dict[Color, IPlayer] = {}
         self._clock: Clock | None = None
+        self._clock_history: list[ClockSnapshot] = []
         self.events = GameEvents()
 
     # ── Properties ───────────────────────────────────────────────────────
@@ -98,6 +100,7 @@ class GameController(IGameController):
             self._clock = Clock(time_control)
         else:
             self._clock = None
+        self._clock_history = []
 
         self._state = GameState()
         self._state.setup(fen)
@@ -117,9 +120,11 @@ class GameController(IGameController):
         if move not in legal:
             return False
 
-        # Clock: stop, add increment, check flag
+        # Clock: freeze mover's time, check flag, then apply increment.
+        clock_snapshot: ClockSnapshot | None = None
         if self._clock is not None:
             color = self._state.side_to_move
+            clock_snapshot = self._clock.snapshot()
             self._clock.stop()
             if self._clock.is_flag_fallen(color):
                 self._state.flag_fall(color)
@@ -129,6 +134,8 @@ class GameController(IGameController):
 
         # Apply
         record = self._state.apply_move(move)
+        if clock_snapshot is not None:
+            self._clock_history.append(clock_snapshot)
 
         # Notify listeners
         self._emit_move(move, record.san)
@@ -179,6 +186,10 @@ class GameController(IGameController):
             cp.cancel()
 
         self._state.undo_last_move()
+        if self._clock is not None:
+            self._clock.stop()
+            if self._clock_history:
+                self._clock.restore(self._clock_history.pop())
         self._emit_phase(GamePhase.AWAITING_MOVE)
         self._prompt_current_player()
         return True

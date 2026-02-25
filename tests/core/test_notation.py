@@ -59,6 +59,26 @@ class TestFenParsing:
         with pytest.raises(ValueError):
             position_from_fen("invalid")
 
+    def test_invalid_side_to_move_raises(self) -> None:
+        with pytest.raises(ValueError, match="side-to-move"):
+            position_from_fen("8/8/8/8/8/8/8/8 x - - 0 1")
+
+    def test_invalid_board_rank_count_raises(self) -> None:
+        with pytest.raises(ValueError, match="8 ranks"):
+            position_from_fen("8/8/8/8/8/8/8 w - - 0 1")
+
+    def test_invalid_board_rank_width_raises(self) -> None:
+        with pytest.raises(ValueError, match="Invalid FEN"):
+            position_from_fen("9/8/8/8/8/8/8/8 w - - 0 1")
+
+    def test_invalid_castling_field_raises(self) -> None:
+        with pytest.raises(ValueError, match="castling"):
+            position_from_fen("8/8/8/8/8/8/8/8 w Kx - 0 1")
+
+    def test_invalid_en_passant_for_side_raises(self) -> None:
+        with pytest.raises(ValueError, match="en-passant"):
+            position_from_fen("8/8/8/8/8/8/8/8 w - e3 0 1")
+
 
 class TestFenSerialisation:
     def test_roundtrip_starting(self) -> None:

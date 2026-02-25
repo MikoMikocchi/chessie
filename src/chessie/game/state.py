@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from chessie.core.enums import Color, GameResult
+from chessie.core.enums import Color, GameResult, MoveFlag
 from chessie.core.move_generator import MoveGenerator
 from chessie.core.notation import STARTING_FEN, position_from_fen, position_to_fen
 from chessie.core.rules import Rules
@@ -62,7 +62,7 @@ class GameState:
         from chessie.core.notation import move_to_san
 
         board = self.position.board
-        was_capture = board[move.to_sq] is not None
+        was_capture = board[move.to_sq] is not None or move.flag == MoveFlag.EN_PASSANT
 
         san = move_to_san(self.position, move)
         self.position.make_move(move)

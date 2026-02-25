@@ -1,5 +1,7 @@
 """Tests for GameController — the orchestrator."""
 
+import time
+
 import pytest
 
 from chessie.core.enums import Color, GameResult, MoveFlag
@@ -133,6 +135,39 @@ class TestWithClock:
     def test_no_clock_by_default(self) -> None:
         ctrl = _make_hh_controller()
         assert ctrl.clock is None
+
+    def test_move_does_not_consume_extra_time_after_submit(self) -> None:
+        ctrl = _make_hh_controller(TimeControl(60, 0))
+        clock = ctrl.clock
+        assert clock is not None
+
+        # Keep callback intentionally slow to detect accidental double-consume.
+        ctrl.events.on_move.append(lambda _m, _san, _st: time.sleep(0.25))
+        time.sleep(0.05)
+        before = clock.remaining(Color.WHITE)
+        ctrl.submit_move(Move(E2, E4, MoveFlag.DOUBLE_PAWN))
+        after = clock.remaining(Color.WHITE)
+
+        assert before - after < 0.12
+
+    def test_undo_restores_clock_snapshot(self) -> None:
+        ctrl = _make_hh_controller(TimeControl(60, 0))
+        clock = ctrl.clock
+        assert clock is not None
+
+        time.sleep(0.05)
+        white_before = clock.remaining(Color.WHITE)
+        black_before = clock.remaining(Color.BLACK)
+
+        ctrl.submit_move(Move(E2, E4, MoveFlag.DOUBLE_PAWN))
+        time.sleep(0.05)  # Black clock runs before undo.
+        assert ctrl.undo_move()
+
+        assert ctrl.state.side_to_move == Color.WHITE
+        assert clock.active_color == Color.WHITE
+        assert clock.is_running
+        assert clock.remaining(Color.WHITE) == pytest.approx(white_before, abs=0.12)
+        assert clock.remaining(Color.BLACK) == pytest.approx(black_before, abs=0.12)
 
 
 class TestAIIntegration:
