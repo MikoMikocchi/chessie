@@ -9,9 +9,7 @@ Board layout (Little-Endian Rank-File mapping):
 
 from __future__ import annotations
 
-from typing import TypeAlias
-
-Square: TypeAlias = int  # 0–63
+type Square = int  # 0–63
 
 
 def file_of(sq: Square) -> int:

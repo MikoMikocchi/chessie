@@ -20,7 +20,7 @@ class _SingleClock(QLabel):
         self._active = False
 
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.setFont(QFont("JetBrains Mono", 22, QFont.Weight.Bold))
+        self.setFont(QFont("Adwaita Sans", 22, QFont.Weight.Bold))
         self.setMinimumWidth(110)
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         self._set_time_text(0.0)
