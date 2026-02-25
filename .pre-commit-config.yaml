@@ -17,13 +17,6 @@ repos:
         additional_dependencies: ["PyQt6>=6.8", "pytest"]
         args: [--ignore-missing-imports]
 
-  # ── C/C++: clang-format ──────────────────────────────────────────────────
-  - repo: https://github.com/pre-commit/mirrors-clang-format
-    rev: v19.1.7
-    hooks:
-      - id: clang-format
-        types_or: [c, c++]
-
   # ── General ──────────────────────────────────────────────────────────────
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
