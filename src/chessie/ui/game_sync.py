@@ -75,7 +75,7 @@ class GameSync:
                 )
             )
         else:
-            self._clock_widget.reset(0)
+            self._clock_widget.reset(None)
 
         self.sync_board_interactivity()
         self.update_status()

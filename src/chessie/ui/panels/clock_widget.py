@@ -25,7 +25,7 @@ class _SingleClock(QLabel):
         self.setFont(QFont("Adwaita Sans", 22, QFont.Weight.Bold))
         self.setMinimumWidth(110)
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
-        self._set_time_text(0.0)
+        self._set_time_text(None)
         self._apply_style()
 
     def set_active(self, active: bool) -> None:
@@ -56,7 +56,10 @@ class _SingleClock(QLabel):
             "padding: 6px 12px; border-radius: 4px;"
         )
 
-    def _set_time_text(self, seconds: float) -> None:
+    def _set_time_text(self, seconds: float | None) -> None:
+        if seconds is None:
+            self.setText("∞")
+            return
         s = max(0.0, seconds)
         mins = int(s) // 60
         secs = int(s) % 60
@@ -66,9 +69,9 @@ class _SingleClock(QLabel):
         else:
             self.setText(f"{mins}:{secs:02d}.{tenths}")
 
-    def update_time(self, seconds: float) -> None:
+    def update_time(self, seconds: float | None) -> None:
         self._set_time_text(seconds)
-        self._is_low_time = seconds < 30.0
+        self._is_low_time = seconds is not None and seconds < 30.0
         self._apply_style()
 
 
@@ -126,11 +129,11 @@ class ClockWidget(QWidget):
         self._white_clock.set_active(color == Color.WHITE)
         self._black_clock.set_active(color == Color.BLACK)
 
-    def update_display(self, white_sec: float, black_sec: float) -> None:
+    def update_display(self, white_sec: float | None, black_sec: float | None) -> None:
         self._white_clock.update_time(white_sec)
         self._black_clock.update_time(black_sec)
 
-    def reset(self, seconds: float) -> None:
+    def reset(self, seconds: float | None) -> None:
         self.stop()
         self.update_display(seconds, seconds)
         self._white_clock.set_active(False)
