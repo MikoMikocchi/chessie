@@ -26,7 +26,7 @@ from chessie.core.notation import (
     STARTING_FEN,
     build_pgn,
     game_result_from_pgn,
-    parse_pgn,
+    parse_pgn_game,
     parse_san,
     pgn_result_token,
     position_to_fen,
@@ -67,6 +67,7 @@ class MainWindow(QMainWindow):
         self._pending_engine_request: int | None = None
         self._pending_engine_fen: str | None = None
         self._is_loading_pgn = False
+        self._pgn_move_comments: list[str | None] = []
 
         self._setup_ui()
         self._setup_menu()
@@ -248,7 +249,9 @@ class MainWindow(QMainWindow):
 
         try:
             pgn_text = Path(file_path).read_text(encoding="utf-8")
-            headers, sans, result_token = parse_pgn(pgn_text)
+            parsed = parse_pgn_game(pgn_text)
+            headers = parsed.headers
+            result_token = parsed.result_token
 
             start_fen = STARTING_FEN
             if headers.get("SetUp") == "1" and "FEN" in headers:
@@ -269,10 +272,14 @@ class MainWindow(QMainWindow):
 
             self._is_loading_pgn = True
             try:
-                for san in sans:
-                    move = parse_san(self._controller.state.position, san)
+                for pgn_move in parsed.moves:
+                    move = parse_san(self._controller.state.position, pgn_move.san)
                     if not self._controller.submit_move(move):
-                        raise ValueError(f"Illegal move in PGN: {san}")
+                        raise ValueError(f"Illegal move in PGN: {pgn_move.san}")
+
+                self._pgn_move_comments = [
+                    pgn_move.comment or None for pgn_move in parsed.moves
+                ]
 
                 declared_result = game_result_from_pgn(result_token)
                 if (
@@ -282,10 +289,8 @@ class MainWindow(QMainWindow):
                     state = self._controller.state
                     state.result = declared_result
                     state.phase = GamePhase.GAME_OVER
-                    state.end_reason = (
-                        GameEndReason.DRAW_AGREED
-                        if declared_result == GameResult.DRAW
-                        else GameEndReason.RESIGN
+                    state.end_reason = self._end_reason_from_termination(
+                        headers.get("Termination")
                     )
                     self._on_game_over(declared_result)
             finally:
@@ -326,17 +331,21 @@ class MainWindow(QMainWindow):
                 "White": white_player.name if white_player is not None else "White",
                 "Black": black_player.name if black_player is not None else "Black",
                 "Result": result_token,
+                "Termination": self._termination_from_end_reason(state.end_reason),
             }
             if state.start_fen != STARTING_FEN:
                 headers["SetUp"] = "1"
                 headers["FEN"] = state.start_fen
-            if state.end_reason != GameEndReason.NONE:
-                headers["Termination"] = state.end_reason.name.lower()
+
+            comments = self._pgn_move_comments[: len(state.move_history)]
+            if len(comments) < len(state.move_history):
+                comments += [None] * (len(state.move_history) - len(comments))
 
             pgn_text = build_pgn(
                 headers=headers,
                 sans=[record.san for record in state.move_history],
                 result_token=result_token,
+                comments=comments,
             )
             save_path.write_text(pgn_text, encoding="utf-8")
             self._status_label.setText(f"Saved PGN: {save_path.name}")
@@ -353,6 +362,7 @@ class MainWindow(QMainWindow):
     def _after_new_game(self) -> None:
         """Sync UI after a new game starts."""
         state = self._controller.state
+        self._pgn_move_comments = []
         self._board_view.board_scene.set_position(state.position)
         self._move_panel.clear()
         self._eval_bar.reset()
@@ -442,6 +452,8 @@ class MainWindow(QMainWindow):
         )
         self._board_view.board_scene.highlight_check()
         self._move_panel.set_history(state.move_history)
+        if len(self._pgn_move_comments) > len(state.move_history):
+            self._pgn_move_comments = self._pgn_move_comments[: len(state.move_history)]
         self._sync_board_interactivity()
         self._update_status()
 
@@ -453,6 +465,11 @@ class MainWindow(QMainWindow):
 
     def _on_game_move(self, move: Move, _san: str, state: GameState) -> None:
         """Called after every move (both human and AI)."""
+        if len(self._pgn_move_comments) < len(state.move_history):
+            self._pgn_move_comments.append(None)
+        elif len(self._pgn_move_comments) > len(state.move_history):
+            self._pgn_move_comments = self._pgn_move_comments[: len(state.move_history)]
+
         self._board_view.board_scene.set_position(state.position)
         self._board_view.board_scene.highlight_last_move(move)
         self._board_view.board_scene.highlight_check()
@@ -593,6 +610,51 @@ class MainWindow(QMainWindow):
         if reason == GameEndReason.FLAG_FALL:
             return f"{winner} wins on time."
         return f"{winner} wins."
+
+    @staticmethod
+    def _termination_from_end_reason(reason: GameEndReason) -> str:
+        mapping = {
+            GameEndReason.NONE: "unterminated",
+            GameEndReason.CHECKMATE: "checkmate",
+            GameEndReason.STALEMATE: "stalemate",
+            GameEndReason.RESIGN: "resignation",
+            GameEndReason.FLAG_FALL: "time forfeit",
+            GameEndReason.DRAW_AGREED: "draw agreed",
+            GameEndReason.DRAW_RULE: "draw rule",
+        }
+        return mapping.get(reason, "unterminated")
+
+    @staticmethod
+    def _end_reason_from_termination(termination: str | None) -> GameEndReason:
+        if termination is None:
+            return GameEndReason.NONE
+
+        normalized = " ".join(
+            termination.strip().lower().replace("_", " ").replace("-", " ").split()
+        )
+        mapping = {
+            "checkmate": GameEndReason.CHECKMATE,
+            "mate": GameEndReason.CHECKMATE,
+            "stalemate": GameEndReason.STALEMATE,
+            "resign": GameEndReason.RESIGN,
+            "resigned": GameEndReason.RESIGN,
+            "resignation": GameEndReason.RESIGN,
+            "time forfeit": GameEndReason.FLAG_FALL,
+            "flag fall": GameEndReason.FLAG_FALL,
+            "time": GameEndReason.FLAG_FALL,
+            "draw agreed": GameEndReason.DRAW_AGREED,
+            "draw agreement": GameEndReason.DRAW_AGREED,
+            "agreement": GameEndReason.DRAW_AGREED,
+            "draw rule": GameEndReason.DRAW_RULE,
+            "threefold repetition": GameEndReason.DRAW_RULE,
+            "fivefold repetition": GameEndReason.DRAW_RULE,
+            "50 move rule": GameEndReason.DRAW_RULE,
+            "75 move rule": GameEndReason.DRAW_RULE,
+            "insufficient material": GameEndReason.DRAW_RULE,
+            "unterminated": GameEndReason.NONE,
+            "normal": GameEndReason.NONE,
+        }
+        return mapping.get(normalized, GameEndReason.NONE)
 
     def _update_status(self) -> None:
         state = self._controller.state

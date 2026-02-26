@@ -6,10 +6,12 @@ from chessie.core.enums import CastlingRights, Color, GameResult, MoveFlag, Piec
 from chessie.core.move import Move
 from chessie.core.notation import (
     STARTING_FEN,
+    ParsedPgn,
     build_pgn,
     game_result_from_pgn,
     move_to_san,
     parse_pgn,
+    parse_pgn_game,
     parse_san,
     pgn_result_token,
     position_from_fen,
@@ -174,6 +176,61 @@ class TestPGN:
         _headers, sans, result_token = parse_pgn(pgn_text)
         assert sans == ["e4", "e5", "Nf3", "Nc6"]
         assert result_token == "1/2-1/2"
+
+    def test_parse_pgn_game_keeps_mainline_comments(self) -> None:
+        pgn_text = """
+[Event "Annotated"]
+[Result "*"]
+
+1. e4 {Best by test} e5 (1... c5 {Sicilian}) 2. Nf3 ;Developing move
+*
+"""
+        parsed = parse_pgn_game(pgn_text)
+
+        assert isinstance(parsed, ParsedPgn)
+        assert [move.san for move in parsed.moves] == ["e4", "e5", "Nf3"]
+        assert parsed.moves[0].comment == "Best by test"
+        assert parsed.moves[1].comment == ""
+        assert parsed.moves[2].comment == "Developing move"
+        assert parsed.result_token == "*"
+
+    def test_build_pgn_with_comments_roundtrip(self) -> None:
+        headers = {"Event": "Commented", "Result": "*"}
+        pgn_text = build_pgn(
+            headers=headers,
+            sans=["e4", "e5", "Nf3"],
+            result_token="*",
+            comments=["central push", None, "developing move"],
+        )
+        parsed = parse_pgn_game(pgn_text)
+
+        assert [move.san for move in parsed.moves] == ["e4", "e5", "Nf3"]
+        assert [move.comment for move in parsed.moves] == [
+            "central push",
+            "",
+            "developing move",
+        ]
+
+    def test_parse_pgn_uses_header_result_when_movetext_omits_it(self) -> None:
+        pgn_text = """
+[Event "NoResultToken"]
+[Result "0-1"]
+
+1. d4 d5
+"""
+        headers, sans, result_token = parse_pgn(pgn_text)
+        assert headers["Result"] == "0-1"
+        assert sans == ["d4", "d5"]
+        assert result_token == "0-1"
+
+    def test_build_pgn_rejects_comment_count_mismatch(self) -> None:
+        with pytest.raises(ValueError, match="comments length"):
+            build_pgn(
+                headers={"Event": "Mismatch", "Result": "*"},
+                sans=["e4", "e5"],
+                result_token="*",
+                comments=["only one"],
+            )
 
     def test_result_token_mapping(self) -> None:
         assert pgn_result_token(GameResult.WHITE_WINS) == "1-0"
