@@ -43,6 +43,7 @@ class AppSettings:
     board_theme: str = "Classic"
     show_coordinates: bool = True
     show_legal_moves: bool = True
+    animate_moves: bool = True
 
     # Sound
     sound_enabled: bool = True
@@ -123,6 +124,11 @@ class _BoardPage(QWidget):
         self._legal_check.setChecked(settings.show_legal_moves)
         self._form.addRow(self._legal_label, self._legal_check)
 
+        self._anim_label = QLabel()
+        self._anim_check = QCheckBox()
+        self._anim_check.setChecked(settings.animate_moves)
+        self._form.addRow(self._anim_label, self._anim_check)
+
         self.retranslate_ui()
 
     def retranslate_ui(self) -> None:
@@ -131,11 +137,13 @@ class _BoardPage(QWidget):
         self._theme_label.setText(s.settings_board_theme)
         self._coords_label.setText(s.settings_show_coords)
         self._legal_label.setText(s.settings_show_legal)
+        self._anim_label.setText(s.settings_animate_moves)
 
     def apply(self, settings: AppSettings) -> None:
         settings.board_theme = self._theme_combo.currentText()
         settings.show_coordinates = self._coords_check.isChecked()
         settings.show_legal_moves = self._legal_check.isChecked()
+        settings.animate_moves = self._anim_check.isChecked()
 
 
 class _BoardThemePreviewWidget(QWidget):

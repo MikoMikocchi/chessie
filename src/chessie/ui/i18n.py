@@ -108,6 +108,7 @@ class Strings:
     settings_board_theme: str
     settings_show_coords: str
     settings_show_legal: str
+    settings_animate_moves: str
 
     # Sound page
     settings_sound_enable: str
@@ -190,6 +191,7 @@ _EN = Strings(
     settings_board_theme="Board theme:",
     settings_show_coords="Show coordinates:",
     settings_show_legal="Show legal moves:",
+    settings_animate_moves="Animate moves:",
     settings_sound_enable="Enable sounds:",
     settings_sound_volume="Volume:",
     settings_engine_depth="Search depth:",
@@ -266,6 +268,7 @@ _RU = Strings(
     settings_board_theme="Тема доски:",
     settings_show_coords="Показывать координаты:",
     settings_show_legal="Показывать возможные ходы:",
+    settings_animate_moves="Анимация ходов:",
     settings_sound_enable="Включить звуки:",
     settings_sound_volume="Громкость:",
     settings_engine_depth="Глубина поиска:",

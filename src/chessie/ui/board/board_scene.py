@@ -2,9 +2,18 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from PyQt6.QtCore import QObject, QPointF, Qt, pyqtSignal
+from PyQt6.QtCore import (
+    QAbstractAnimation,
+    QEasingCurve,
+    QObject,
+    QPointF,
+    QPropertyAnimation,
+    Qt,
+    pyqtSignal,
+)
 from PyQt6.QtGui import QBrush, QColor, QFont, QPen
 from PyQt6.QtWidgets import (
     QGraphicsRectItem,
@@ -13,6 +22,7 @@ from PyQt6.QtWidgets import (
     QGraphicsSimpleTextItem,
 )
 
+from chessie.core.enums import MoveFlag
 from chessie.core.move import Move
 from chessie.core.move_generator import MoveGenerator
 from chessie.core.types import Square, file_of, make_square, rank_of
@@ -35,6 +45,8 @@ class BoardScene(QGraphicsScene):
 
     TILE = 80  # px per square
 
+    _ANIM_DURATION_MS = 150
+
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._theme = BoardTheme.default()
@@ -48,6 +60,8 @@ class BoardScene(QGraphicsScene):
         self._interactive = True
         self._show_coordinates = True
         self._show_legal_moves = True
+        self._animate_moves = True
+        self._active_anim: QPropertyAnimation | None = None
 
         # Visual layers
         self._square_items: dict[Square, QGraphicsRectItem] = {}
@@ -99,6 +113,10 @@ class BoardScene(QGraphicsScene):
         self._show_legal_moves = visible
         if not visible:
             self._clear_items(self._legal_dot_items)
+
+    def set_animate_moves(self, enabled: bool) -> None:
+        """Enable or disable piece move animations."""
+        self._animate_moves = enabled
 
     def highlight_last_move(self, move: Move | None) -> None:
         """Highlight origin/destination of the last played move."""
@@ -207,6 +225,92 @@ class BoardScene(QGraphicsScene):
                 item.setPos(vf * t + item.margin, vr * t + item.margin)
                 self.addItem(item)
                 self._piece_items[sq] = item
+
+    def animate_and_sync(
+        self,
+        move: Move,
+        new_position: Position,
+        *,
+        on_done: Callable[[], None] | None = None,
+    ) -> None:
+        """Slide the moving piece to its destination, then full-sync.
+
+        Falls back to an instant sync when animation is disabled or a
+        previous animation is still running (e.g. fast PGN playback).
+        """
+        # If a previous animation is still running, stop it and fall back to
+        # an instant sync for this call — avoids a corrupt piece-dict state.
+        if self._active_anim is not None:
+            self._active_anim.stop()
+            self._active_anim = None
+            self._position = new_position
+            self._sync_pieces()
+            if on_done:
+                on_done()
+            return
+
+        item = self._piece_items.get(move.from_sq)
+        if not self._animate_moves or item is None:
+            self._position = new_position
+            self._sync_pieces()
+            if on_done:
+                on_done()
+            return
+
+        t = self.TILE
+
+        # ── Remove captured piece visually before animating ──────────────
+        if move.flag == MoveFlag.EN_PASSANT:
+            ep_sq = make_square(file_of(move.to_sq), rank_of(move.from_sq))
+            cap = self._piece_items.pop(ep_sq, None)
+            if cap is not None:
+                self.removeItem(cap)
+        else:
+            cap = self._piece_items.pop(move.to_sq, None)
+            if cap is not None:
+                self.removeItem(cap)
+
+        # ── Snap castling rook to its destination instantly ──────────────
+        if move.flag in (MoveFlag.CASTLE_KINGSIDE, MoveFlag.CASTLE_QUEENSIDE):
+            rank = rank_of(move.from_sq)
+            if move.flag == MoveFlag.CASTLE_KINGSIDE:
+                rook_from, rook_to = make_square(7, rank), make_square(5, rank)
+            else:
+                rook_from, rook_to = make_square(0, rank), make_square(3, rank)
+            rook_item = self._piece_items.pop(rook_from, None)
+            if rook_item is not None:
+                rvf, rvr = self._visual_coords(file_of(rook_to), rank_of(rook_to))
+                rook_item.setPos(rvf * t + rook_item.margin, rvr * t + rook_item.margin)
+                self._piece_items[rook_to] = rook_item
+
+        # ── Animate main piece ───────────────────────────────────────────
+        vf, vr = self._visual_coords(file_of(move.to_sq), rank_of(move.to_sq))
+        target = QPointF(vf * t + item.margin, vr * t + item.margin)
+
+        # Update bookkeeping before the animation completes so that
+        # mouse events during the slide see a consistent state.
+        del self._piece_items[move.from_sq]
+        self._piece_items[move.to_sq] = item
+        item.square = move.to_sq
+        item.setZValue(2)
+
+        anim = QPropertyAnimation(item, b"pos", self)
+        anim.setDuration(self._ANIM_DURATION_MS)
+        anim.setStartValue(item.pos())
+        anim.setEndValue(target)
+        anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+
+        def _on_finished() -> None:
+            self._active_anim = None
+            item.setZValue(1)
+            self._position = new_position
+            self._sync_pieces()
+            if on_done:
+                on_done()
+
+        anim.finished.connect(_on_finished)
+        self._active_anim = anim
+        anim.start(QAbstractAnimation.DeletionPolicy.DeleteWhenStopped)
 
     # ── Mouse interaction ────────────────────────────────────────────────
 

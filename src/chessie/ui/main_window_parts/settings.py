@@ -34,6 +34,7 @@ def apply_settings(host: Any) -> None:
     scene.set_theme(theme_map.get(s.board_theme, BoardTheme.default()))
     scene.set_show_coordinates(s.show_coordinates)
     scene.set_show_legal_moves(s.show_legal_moves)
+    scene.set_animate_moves(s.animate_moves)
 
     # Sound
     host._sound_player.set_enabled(s.sound_enabled)

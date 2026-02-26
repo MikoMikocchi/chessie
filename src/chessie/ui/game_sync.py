@@ -98,9 +98,17 @@ class GameSync:
         if state.move_history and not is_loading_pgn:
             self._sound_player.play_move_sound(state.move_history[-1], state)
 
-        self._board_scene.set_position(state.position)
-        self._board_scene.highlight_last_move(move)
-        self._board_scene.highlight_check()
+        def _after_sync() -> None:
+            self._board_scene.highlight_last_move(move)
+            self._board_scene.highlight_check()
+
+        if is_loading_pgn:
+            self._board_scene.set_position(state.position)
+            _after_sync()
+        else:
+            self._board_scene.animate_and_sync(
+                move, state.position, on_done=_after_sync
+            )
 
         record = state.move_history[-1]
         ply = len(state.move_history) - 1
