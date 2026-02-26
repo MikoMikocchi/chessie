@@ -27,10 +27,10 @@ class Strings:
     menu_settings_action: str
 
     status_ready: str
-    status_game_over: str      # prefix, e.g. "Game over - "
-    status_loaded_pgn: str     # e.g. "Loaded PGN: {name}"
-    status_saved_pgn: str      # e.g. "Saved PGN: {name}"
-    status_engine_error: str   # e.g. "Engine error: {msg}"
+    status_game_over: str  # prefix, e.g. "Game over - "
+    status_loaded_pgn: str  # e.g. "Loaded PGN: {name}"
+    status_saved_pgn: str  # e.g. "Saved PGN: {name}"
+    status_engine_error: str  # e.g. "Engine error: {msg}"
     status_draw_declined: str
 
     # Game-over reasons
@@ -39,10 +39,10 @@ class Strings:
     draw_agreed: str
     draw_rule: str
     draw_generic: str
-    wins_checkmate: str        # "{color} wins by checkmate."
-    wins_resign: str           # "{color} wins by resignation."
-    wins_time: str             # "{color} wins on time."
-    wins_generic: str          # "{color} wins."
+    wins_checkmate: str  # "{color} wins by checkmate."
+    wins_resign: str  # "{color} wins by resignation."
+    wins_time: str  # "{color} wins on time."
+    wins_generic: str  # "{color} wins."
     color_white: str
     color_black: str
 
@@ -52,15 +52,15 @@ class Strings:
 
     # Draw-offer dialog
     draw_offer_title: str
-    draw_offer_question: str   # "{color} offers a draw. Accept?"
+    draw_offer_question: str  # "{color} offers a draw. Accept?"
 
     # PGN dialogs
     pgn_filter: str
     pgn_all_files: str
     open_pgn_title: str
-    open_pgn_failed: str       # "Failed to load PGN:\n{exc}"
+    open_pgn_failed: str  # "Failed to load PGN:\n{exc}"
     save_pgn_title: str
-    save_pgn_failed: str       # "Failed to save PGN:\n{exc}"
+    save_pgn_failed: str  # "Failed to save PGN:\n{exc}"
 
     # Phase names (map from GamePhase int name → display)
     phase_not_started: str
@@ -132,14 +132,12 @@ _EN = Strings(
     menu_quit="&Quit",
     menu_settings="&Settings",
     menu_settings_action="&Settings...",
-
     status_ready="Ready",
     status_game_over="Game over — ",
     status_loaded_pgn="Loaded PGN: {name}",
     status_saved_pgn="Saved PGN: {name}",
     status_engine_error="Engine error: {msg}",
     status_draw_declined="Draw offer declined by Chessie AI.",
-
     game_over_title="Game Over",
     draw_stalemate="Draw by stalemate.",
     draw_agreed="Draw by agreement.",
@@ -151,36 +149,28 @@ _EN = Strings(
     wins_generic="{color} wins.",
     color_white="White",
     color_black="Black",
-
     resign_title="Resign",
     resign_confirm="Are you sure you want to resign?",
-
     draw_offer_title="Draw Offer",
     draw_offer_question="{color} offers a draw. Accept?",
-
     pgn_filter="PGN Files (*.pgn)",
     pgn_all_files="All Files (*)",
     open_pgn_title="Open PGN",
     open_pgn_failed="Failed to load PGN:\n{exc}",
     save_pgn_title="Save PGN",
     save_pgn_failed="Failed to save PGN:\n{exc}",
-
     phase_not_started="Not started",
     phase_awaiting_move="Awaiting move",
     phase_thinking="Thinking",
     phase_game_over="Game over",
-
     clock_white="White",
     clock_black="Black",
-
     moves_header="Moves",
-
     btn_new_game="New Game",
     btn_flip="⟲ Flip",
     btn_undo="↩ Undo",
     btn_resign="Resign",
     btn_draw="½ Draw",
-
     new_game_title="New Game",
     new_game_opponent="Opponent:",
     new_game_human="Human",
@@ -190,23 +180,18 @@ _EN = Strings(
     new_game_black="♚ Black",
     new_game_time_control="Time control:",
     new_game_unlimited="Unlimited",
-
     promote_title="Promote pawn",
     promote_label="Choose promotion piece:",
-
     settings_title="Settings",
     settings_board="Board",
     settings_sound="Sound",
     settings_engine="Engine",
     settings_language="Language",
-
     settings_board_theme="Board theme:",
     settings_show_coords="Show coordinates:",
     settings_show_legal="Show legal moves:",
-
     settings_sound_enable="Enable sounds:",
     settings_sound_volume="Volume:",
-
     settings_engine_depth="Search depth:",
     settings_engine_time="Time limit per move:",
     settings_engine_depth_suffix=" ply",
@@ -223,14 +208,12 @@ _RU = Strings(
     menu_quit="&Выход",
     menu_settings="&Настройки",
     menu_settings_action="&Настройки...",
-
     status_ready="Готово",
     status_game_over="Конец игры — ",
     status_loaded_pgn="Загружен PGN: {name}",
     status_saved_pgn="Сохранён PGN: {name}",
     status_engine_error="Ошибка движка: {msg}",
     status_draw_declined="Предложение ничьей отклонено Chessie AI.",
-
     game_over_title="Конец игры",
     draw_stalemate="Пат.",
     draw_agreed="Ничья по соглашению.",
@@ -242,36 +225,28 @@ _RU = Strings(
     wins_generic="{color} побеждает.",
     color_white="Белые",
     color_black="Чёрные",
-
     resign_title="Сдаться",
     resign_confirm="Вы уверены, что хотите сдаться?",
-
     draw_offer_title="Предложение ничьей",
     draw_offer_question="{color} предлагает ничью. Принять?",
-
     pgn_filter="Файлы PGN (*.pgn)",
     pgn_all_files="Все файлы (*)",
     open_pgn_title="Открыть PGN",
     open_pgn_failed="Не удалось загрузить PGN:\n{exc}",
     save_pgn_title="Сохранить PGN",
     save_pgn_failed="Не удалось сохранить PGN:\n{exc}",
-
     phase_not_started="Не начата",
     phase_awaiting_move="Ожидание хода",
     phase_thinking="Расчёт",
     phase_game_over="Конец игры",
-
     clock_white="Белые",
     clock_black="Чёрные",
-
     moves_header="Ходы",
-
     btn_new_game="Новая игра",
     btn_flip="⟲ Перевернуть",
     btn_undo="↩ Отмена",
     btn_resign="Сдаться",
     btn_draw="½ Ничья",
-
     new_game_title="Новая игра",
     new_game_opponent="Соперник:",
     new_game_human="Человек",
@@ -281,23 +256,18 @@ _RU = Strings(
     new_game_black="♚ Чёрные",
     new_game_time_control="Контроль времени:",
     new_game_unlimited="Без ограничений",
-
     promote_title="Превращение пешки",
     promote_label="Выберите фигуру для превращения:",
-
     settings_title="Настройки",
     settings_board="Доска",
     settings_sound="Звук",
     settings_engine="Движок",
     settings_language="Язык",
-
     settings_board_theme="Тема доски:",
     settings_show_coords="Показывать координаты:",
     settings_show_legal="Показывать возможные ходы:",
-
     settings_sound_enable="Включить звуки:",
     settings_sound_volume="Громкость:",
-
     settings_engine_depth="Глубина поиска:",
     settings_engine_time="Лимит времени на ход:",
     settings_engine_depth_suffix=" пл.",

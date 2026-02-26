@@ -75,32 +75,3 @@ class MovePanel(QWidget):
             move_num = ply // 2 + 1
             color = Color.WHITE if ply % 2 == 0 else Color.BLACK
             self.add_move(rec, move_num, color)
-
-    def add_move(self, record: MoveRecord, move_number: int, color: Color) -> None:
-        """Append a move to the panel."""
-        self._records.append(record)
-
-        if color == Color.WHITE:
-            text = f"{move_number}. {record.san}"
-        else:
-            text = f"{move_number}. ... {record.san}"
-
-        item = QListWidgetItem(text)
-        item.setFont(QFont("JetBrains Mono", 12))
-        self._list.addItem(item)
-        self._list.scrollToBottom()
-
-    def remove_last(self) -> None:
-        """Remove the last move entry (for undo)."""
-        if self._records:
-            self._records.pop()
-            self._list.takeItem(self._list.count() - 1)
-
-    def set_history(self, records: list[MoveRecord]) -> None:
-        """Rebuild the entire move list."""
-        self.clear()
-        for i, rec in enumerate(records):
-            ply = i
-            move_num = ply // 2 + 1
-            color = Color.WHITE if ply % 2 == 0 else Color.BLACK
-            self.add_move(rec, move_num, color)

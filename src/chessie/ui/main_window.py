@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, TypeVar
 
@@ -22,15 +21,7 @@ from PyQt6.QtWidgets import (
 
 from chessie.core.enums import Color, GameResult
 from chessie.core.move import Move
-from chessie.core.notation import (
-    STARTING_FEN,
-    build_pgn,
-    game_result_from_pgn,
-    parse_pgn_game,
-    parse_san,
-    pgn_result_token,
-    position_to_fen,
-)
+from chessie.core.notation import position_to_fen
 from chessie.engine import EngineWorker
 from chessie.game.controller import GameController
 from chessie.game.interfaces import GameEndReason, GamePhase, IPlayer, TimeControl
@@ -44,6 +35,7 @@ from chessie.ui.panels.clock_widget import ClockWidget
 from chessie.ui.panels.control_panel import ControlPanel
 from chessie.ui.panels.eval_bar import EvalBar
 from chessie.ui.panels.move_panel import MovePanel
+from chessie.ui.pgn_io import load_pgn_file, save_pgn_file
 from chessie.ui.sounds import SoundPlayer
 from chessie.ui.styles.theme import BoardTheme
 
@@ -264,60 +256,15 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            pgn_text = Path(file_path).read_text(encoding="utf-8")
-            parsed = parse_pgn_game(pgn_text)
-            headers = parsed.headers
-            result_token = parsed.result_token
-
-            start_fen = STARTING_FEN
-            if headers.get("SetUp") == "1" and "FEN" in headers:
-                start_fen = headers["FEN"]
-
-            self._cancel_ai_search()
-            white = HumanPlayer(Color.WHITE, headers.get("White", "White"))
-            black = HumanPlayer(Color.BLACK, headers.get("Black", "Black"))
-
-            self._connect_game_events()
-            self._controller.new_game(
-                white=white,
-                black=black,
-                time_control=TimeControl.unlimited(),
-                fen=start_fen,
+            load_pgn_file(self, Path(file_path))
+            self._status_label.setText(
+                t().status_loaded_pgn.format(name=Path(file_path).name)
             )
-            self._after_new_game()
-
-            self._is_loading_pgn = True
-            try:
-                for pgn_move in parsed.moves:
-                    move = parse_san(self._controller.state.position, pgn_move.san)
-                    if not self._controller.submit_move(move):
-                        raise ValueError(f"Illegal move in PGN: {pgn_move.san}")
-
-                self._pgn_move_comments = [
-                    pgn_move.comment or None for pgn_move in parsed.moves
-                ]
-
-                declared_result = game_result_from_pgn(result_token)
-                if (
-                    declared_result != GameResult.IN_PROGRESS
-                    and not self._controller.state.is_game_over
-                ):
-                    state = self._controller.state
-                    state.result = declared_result
-                    state.phase = GamePhase.GAME_OVER
-                    state.end_reason = self._end_reason_from_termination(
-                        headers.get("Termination")
-                    )
-                    self._on_game_over(declared_result)
-            finally:
-                self._is_loading_pgn = False
-
-            self._sync_board_interactivity()
-            self._update_status()
-            self._status_label.setText(t().status_loaded_pgn.format(name=Path(file_path).name))
         except Exception as exc:
             self._is_loading_pgn = False
-            QMessageBox.warning(self, t().open_pgn_title, t().open_pgn_failed.format(exc=exc))
+            QMessageBox.warning(
+                self, t().open_pgn_title, t().open_pgn_failed.format(exc=exc)
+            )
 
     def _on_save_pgn(self) -> None:
         file_path, _ = QFileDialog.getSaveFileName(
@@ -330,43 +277,12 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            save_path = Path(file_path)
-            if save_path.suffix.lower() != ".pgn":
-                save_path = save_path.with_suffix(".pgn")
-
-            state = self._controller.state
-            white_player = self._controller.player(Color.WHITE)
-            black_player = self._controller.player(Color.BLACK)
-            result_token = pgn_result_token(state.result)
-
-            headers: dict[str, str] = {
-                "Event": "Casual Game",
-                "Site": "Chessie",
-                "Date": datetime.now().strftime("%Y.%m.%d"),
-                "Round": "-",
-                "White": white_player.name if white_player is not None else "White",
-                "Black": black_player.name if black_player is not None else "Black",
-                "Result": result_token,
-                "Termination": self._termination_from_end_reason(state.end_reason),
-            }
-            if state.start_fen != STARTING_FEN:
-                headers["SetUp"] = "1"
-                headers["FEN"] = state.start_fen
-
-            comments = self._pgn_move_comments[: len(state.move_history)]
-            if len(comments) < len(state.move_history):
-                comments += [None] * (len(state.move_history) - len(comments))
-
-            pgn_text = build_pgn(
-                headers=headers,
-                sans=[record.san for record in state.move_history],
-                result_token=result_token,
-                comments=comments,
-            )
-            save_path.write_text(pgn_text, encoding="utf-8")
+            save_path = save_pgn_file(self, Path(file_path))
             self._status_label.setText(t().status_saved_pgn.format(name=save_path.name))
         except Exception as exc:
-            QMessageBox.warning(self, t().save_pgn_title, t().save_pgn_failed.format(exc=exc))
+            QMessageBox.warning(
+                self, t().save_pgn_title, t().save_pgn_failed.format(exc=exc)
+            )
 
     def closeEvent(self, event: QCloseEvent | None) -> None:
         self._cancel_ai_search()
@@ -510,6 +426,8 @@ class MainWindow(QMainWindow):
     def retranslate_ui(self) -> None:
         """Update all translatable strings when the locale changes."""
         s = t()
+        assert self._menu_game is not None
+        assert self._menu_settings is not None
         # Menu bar
         self._menu_game.setTitle(s.menu_game)
         self._act_new_game.setText(s.menu_new_game)
@@ -742,7 +660,9 @@ class MainWindow(QMainWindow):
             "THINKING": s.phase_thinking,
             "GAME_OVER": s.phase_game_over,
         }
-        phase = phase_map.get(state.phase.name, state.phase.name.replace("_", " ").capitalize())
+        phase = phase_map.get(
+            state.phase.name, state.phase.name.replace("_", " ").capitalize()
+        )
         self._status_label.setText(f"{side} | {phase} | {state.fullmove_display}")
 
     def _resolve_resign_color(self) -> Color:

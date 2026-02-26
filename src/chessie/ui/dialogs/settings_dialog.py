@@ -293,8 +293,7 @@ class SettingsDialog(QDialog):
         right.addWidget(self._stack)
 
         self._btn_box = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok
-            | QDialogButtonBox.StandardButton.Cancel
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
         self._btn_box.setContentsMargins(12, 8, 12, 8)
         self._btn_box.accepted.connect(self._on_accept)

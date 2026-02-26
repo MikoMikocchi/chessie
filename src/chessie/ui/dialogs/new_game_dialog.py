@@ -126,8 +126,11 @@ class NewGameDialog(QDialog):
             if label_item is not None and label_item.widget() is not None:
                 label_item.widget().setText(label_text)  # type: ignore[union-attr]
             else:
-                self._form.setItem(row, QFormLayout.ItemRole.LabelRole,
-                                   self._form.itemAt(row, QFormLayout.ItemRole.LabelRole))
+                self._form.setItem(
+                    row,
+                    QFormLayout.ItemRole.LabelRole,
+                    self._form.itemAt(row, QFormLayout.ItemRole.LabelRole),
+                )
 
     def _on_accept(self) -> None:
         time_idx = self._combo_time.currentIndex()
