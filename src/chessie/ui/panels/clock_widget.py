@@ -19,33 +19,42 @@ class _SingleClock(QLabel):
         super().__init__(parent)
         self._color = color
         self._active = False
+        self._is_low_time = False
 
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setFont(QFont("Adwaita Sans", 22, QFont.Weight.Bold))
         self.setMinimumWidth(110)
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         self._set_time_text(0.0)
-        self.set_active(False)
+        self._apply_style()
 
     def set_active(self, active: bool) -> None:
         self._active = active
-        if active:
-            self.setStyleSheet(
-                "background-color: #3a7d44; color: white; "
-                "padding: 6px 12px; border-radius: 4px;"
-            )
-        else:
+        self._apply_style()
+
+    def set_low_time(self) -> None:
+        self._is_low_time = True
+        self._apply_style()
+
+    def _apply_style(self) -> None:
+        if not self._active:
             self.setStyleSheet(
                 "background-color: #2b2b2b; color: #aaa; "
                 "padding: 6px 12px; border-radius: 4px;"
             )
+            return
 
-    def set_low_time(self) -> None:
-        if self._active:
+        if self._is_low_time:
             self.setStyleSheet(
                 "background-color: #8b2020; color: white; "
                 "padding: 6px 12px; border-radius: 4px;"
             )
+            return
+
+        self.setStyleSheet(
+            "background-color: #3a7d44; color: white; "
+            "padding: 6px 12px; border-radius: 4px;"
+        )
 
     def _set_time_text(self, seconds: float) -> None:
         s = max(0.0, seconds)
@@ -59,8 +68,8 @@ class _SingleClock(QLabel):
 
     def update_time(self, seconds: float) -> None:
         self._set_time_text(seconds)
-        if seconds < 30.0 and self._active:
-            self.set_low_time()
+        self._is_low_time = seconds < 30.0
+        self._apply_style()
 
 
 class ClockWidget(QWidget):
