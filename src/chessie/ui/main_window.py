@@ -286,16 +286,29 @@ class MainWindow(QMainWindow):
             self._controller.accept_draw(offering_color.opposite)
 
     def _on_undo(self) -> None:
-        if self._controller.undo_move():
-            state = self._controller.state
-            self._board_view.board_scene.set_position(state.position)
-            self._board_view.board_scene.highlight_last_move(
-                state.move_history[-1].move if state.move_history else None
-            )
-            self._board_view.board_scene.highlight_check()
-            self._move_panel.remove_last()
-            self._sync_board_interactivity()
-            self._update_status()
+        if not self._controller.undo_move():
+            return
+
+        state = self._controller.state
+        # Human-vs-AI UX: one click should roll back the full turn pair.
+        if self._is_human_vs_ai():
+            current = self._controller.current_player
+            if (
+                current is not None
+                and not current.is_human
+                and state.move_history
+                and self._controller.undo_move()
+            ):
+                state = self._controller.state
+
+        self._board_view.board_scene.set_position(state.position)
+        self._board_view.board_scene.highlight_last_move(
+            state.move_history[-1].move if state.move_history else None
+        )
+        self._board_view.board_scene.highlight_check()
+        self._move_panel.set_history(state.move_history)
+        self._sync_board_interactivity()
+        self._update_status()
 
     def _on_flip(self) -> None:
         scene = self._board_view.board_scene
@@ -458,3 +471,12 @@ class MainWindow(QMainWindow):
         if black_is_human:
             return Color.BLACK
         return self._controller.state.side_to_move
+
+    def _is_human_vs_ai(self) -> bool:
+        white_player = self._controller.player(Color.WHITE)
+        black_player = self._controller.player(Color.BLACK)
+        return bool(
+            white_player is not None
+            and black_player is not None
+            and white_player.is_human != black_player.is_human
+        )
