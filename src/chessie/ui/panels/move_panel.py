@@ -57,7 +57,7 @@ class MovePanel(QWidget):
             text = f"{move_number}. ... {record.san}"
 
         item = QListWidgetItem(text)
-        item.setFont(QFont("JetBrains Mono", 12))
+        item.setFont(QFont("Adwaita Sans", 12))
         self._list.addItem(item)
         self._list.scrollToBottom()
 

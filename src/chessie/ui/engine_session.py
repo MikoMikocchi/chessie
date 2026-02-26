@@ -32,6 +32,7 @@ class EngineSession:
     """Owns worker-thread search lifecycle and move handoff to controller."""
 
     __slots__ = (
+        "__weakref__",
         "_controller",
         "_engine_request",
         "_set_eval",
