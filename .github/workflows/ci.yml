@@ -81,8 +81,12 @@ jobs:
             libdbus-1-3 \
             libfontconfig1 \
             libpulse0 \
-            libasound2 \
             xvfb
+          if apt-cache policy libasound2 | grep -q "Candidate: (none)"; then
+            sudo apt-get install -y libasound2t64
+          else
+            sudo apt-get install -y libasound2
+          fi
 
       - name: Run tests (Linux)
         if: runner.os == 'Linux'
