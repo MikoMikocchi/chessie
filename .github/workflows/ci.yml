@@ -80,6 +80,8 @@ jobs:
             libglib2.0-0 \
             libdbus-1-3 \
             libfontconfig1 \
+            libpulse0 \
+            libasound2 \
             xvfb
 
       - name: Run tests (Linux)
