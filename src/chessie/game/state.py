@@ -34,7 +34,10 @@ class GameState:
     This is a pure data/logic class — no threading, no UI.
     """
 
-    position: Position = field(init=False)
+    position: Position = field(
+        default_factory=lambda: position_from_fen(STARTING_FEN),
+        init=False,
+    )
     phase: GamePhase = field(default=GamePhase.NOT_STARTED, init=False)
     result: GameResult = field(default=GameResult.IN_PROGRESS, init=False)
     draw_offer: DrawOffer = field(default=DrawOffer.NONE, init=False)

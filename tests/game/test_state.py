@@ -9,6 +9,11 @@ from chessie.game.state import GameState
 
 
 class TestGameStateSetup:
+    def test_position_is_available_before_setup(self) -> None:
+        gs = GameState()
+        assert gs.phase == GamePhase.NOT_STARTED
+        assert gs.side_to_move == Color.WHITE
+
     def test_setup_default(self) -> None:
         gs = GameState()
         gs.setup()
