@@ -28,6 +28,9 @@ jobs:
       - name: Mypy check
         run: uv run mypy src
 
+      - name: Bandit check
+        run: uv run bandit -c pyproject.toml -r src
+
   build:
     runs-on: ubuntu-latest
     steps:

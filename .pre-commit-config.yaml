@@ -17,6 +17,15 @@ repos:
         additional_dependencies: ["PyQt6>=6.8", "pytest"]
         args: [--ignore-missing-imports]
 
+  # ── Python: Bandit  ──────────────────────────────────────────
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.9.4
+    hooks:
+      - id: bandit
+        pass_filenames: false
+        args: ["-c", "pyproject.toml", "-r", "src"]
+        additional_dependencies: ["bandit[toml]"]
+
   # ── General ──────────────────────────────────────────────────────────────
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
