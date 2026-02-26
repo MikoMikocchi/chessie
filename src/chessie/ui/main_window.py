@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, TypeVar
+from typing import TypeVar
 
-from PyQt6.QtCore import QThread, QTimer, pyqtSignal
+from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtGui import QAction, QCloseEvent
 from PyQt6.QtWidgets import (
     QFileDialog,
@@ -21,8 +21,6 @@ from PyQt6.QtWidgets import (
 
 from chessie.core.enums import Color, GameResult
 from chessie.core.move import Move
-from chessie.core.notation import position_to_fen
-from chessie.engine import EngineWorker
 from chessie.game.controller import GameController
 from chessie.game.interfaces import GameEndReason, GamePhase, IPlayer, TimeControl
 from chessie.game.player import AIPlayer, HumanPlayer
@@ -30,6 +28,7 @@ from chessie.game.state import GameState
 from chessie.ui.board.board_view import BoardView
 from chessie.ui.dialogs.new_game_dialog import NewGameDialog
 from chessie.ui.dialogs.settings_dialog import AppSettings, SettingsDialog
+from chessie.ui.engine_session import EngineSession
 from chessie.ui.i18n import set_language, t
 from chessie.ui.panels.clock_widget import ClockWidget
 from chessie.ui.panels.control_panel import ControlPanel
@@ -38,9 +37,6 @@ from chessie.ui.panels.move_panel import MovePanel
 from chessie.ui.pgn_io import load_pgn_file, save_pgn_file
 from chessie.ui.sounds import SoundPlayer
 from chessie.ui.styles.theme import BoardTheme
-
-if TYPE_CHECKING:
-    from chessie.core.position import Position
 
 TCallback = TypeVar("TCallback", bound=Callable[..., None])
 
@@ -59,15 +55,20 @@ class MainWindow(QMainWindow):
         self._controller = GameController()
         self._settings = AppSettings()
         self._sound_player = SoundPlayer()
-        self._engine_thread = QThread(self)
-        self._engine_worker = EngineWorker(max_depth=4, time_limit_ms=900)
-        self._engine_request_id = 0
-        self._pending_engine_request: int | None = None
-        self._pending_engine_fen: str | None = None
         self._is_loading_pgn = False
         self._pgn_move_comments: list[str | None] = []
 
         self._setup_ui()
+        self._engine_session = EngineSession(
+            controller=self._controller,
+            engine_request=self.engine_request,
+            set_eval=self._eval_bar.set_eval,
+            set_status=self._status_label.setText,
+            sync_board_interactivity=self._sync_board_interactivity,
+            parent=self,
+            max_depth=4,
+            time_limit_ms=900,
+        )
         self._setup_menu()
         self._connect_signals()
         self._connect_game_events()
@@ -176,13 +177,8 @@ class MainWindow(QMainWindow):
         self._control_panel.flip_clicked.connect(self._on_flip)
 
     def _setup_engine(self) -> None:
-        """Set up engine worker in a dedicated QThread."""
-        self._engine_worker.moveToThread(self._engine_thread)
-        self.engine_request.connect(self._engine_worker.request_move)
-        self._engine_worker.best_move_ready.connect(self._on_engine_best_move)
-        self._engine_worker.search_cancelled.connect(self._on_engine_cancelled)
-        self._engine_worker.search_error.connect(self._on_engine_error)
-        self._engine_thread.start()
+        """Set up engine worker session in a dedicated QThread."""
+        self._engine_session.setup()
 
     def _connect_game_events(self) -> None:
         """Subscribe to GameController callbacks (idempotent)."""
@@ -285,10 +281,8 @@ class MainWindow(QMainWindow):
             )
 
     def closeEvent(self, event: QCloseEvent | None) -> None:
-        self._cancel_ai_search()
         self._disconnect_game_events()
-        self._engine_thread.quit()
-        self._engine_thread.wait(2000)
+        self._engine_session.shutdown()
         super().closeEvent(event)
 
     def _after_new_game(self) -> None:
@@ -421,7 +415,7 @@ class MainWindow(QMainWindow):
         self._sound_player.set_volume(s.sound_volume)
 
         # Engine (applied to subsequent searches; doesn't interrupt current)
-        self._engine_worker.set_limits(s.engine_depth, s.engine_time_ms)
+        self._engine_session.set_limits(s.engine_depth, s.engine_time_ms)
 
     def retranslate_ui(self) -> None:
         """Update all translatable strings when the locale changes."""
@@ -488,86 +482,10 @@ class MainWindow(QMainWindow):
     # ── Engine callbacks ──────────────────────────────────────────────────
 
     def _create_ai_player(self, color: Color) -> AIPlayer:
-        return AIPlayer(
-            color,
-            "Chessie AI",
-            on_request_move=self._request_ai_move,
-            on_cancel=self._cancel_ai_search,
-        )
-
-    def _request_ai_move(self, position: Position) -> None:
-        self._cancel_ai_search()
-        self._engine_request_id += 1
-        request_id = self._engine_request_id
-
-        self._pending_engine_request = request_id
-        self._pending_engine_fen = position_to_fen(position)
-
-        # Delay engine start slightly to allow the UI to repaint the user's move
-        def _emit_if_valid() -> None:
-            if self._pending_engine_request == request_id:
-                self.engine_request.emit(position.copy(), request_id)
-
-        QTimer.singleShot(50, _emit_if_valid)
+        return self._engine_session.create_ai_player(color)
 
     def _cancel_ai_search(self) -> None:
-        self._pending_engine_request = None
-        self._pending_engine_fen = None
-        self._engine_worker.cancel()
-
-    def _on_engine_best_move(
-        self,
-        request_id: int,
-        move_obj: object,
-        score_cp: int,
-        _depth: int,
-        _nodes: int,
-    ) -> None:
-        if request_id != self._pending_engine_request:
-            return
-        if not isinstance(move_obj, Move):
-            return
-
-        state = self._controller.state
-        if state.phase != GamePhase.THINKING:
-            return
-        if self._pending_engine_fen != position_to_fen(state.position):
-            return
-
-        # Eval bar is white-centric; engine score is side-to-move-centric.
-        white_cp = score_cp if state.side_to_move == Color.WHITE else -score_cp
-
-        self._pending_engine_request = None
-        self._pending_engine_fen = None
-        ok = self._controller.submit_move(move_obj)
-        if ok:
-            self._eval_bar.set_eval(float(white_cp))
-        self._sync_board_interactivity()
-
-    def _on_engine_error(self, request_id: int, message: str) -> None:
-        if request_id != self._pending_engine_request:
-            return
-        self._pending_engine_request = None
-        self._pending_engine_fen = None
-
-        state = self._controller.state
-        if state.phase != GamePhase.THINKING:
-            return
-
-        legal = state.legal_moves()
-        if legal:
-            self._controller.submit_move(legal[0])
-            return
-
-        self._status_label.setText(t().status_engine_error.format(msg=message))
-        self._sync_board_interactivity()
-
-    def _on_engine_cancelled(self, request_id: int) -> None:
-        if request_id != self._pending_engine_request:
-            return
-        self._pending_engine_request = None
-        self._pending_engine_fen = None
-        self._sync_board_interactivity()
+        self._engine_session.cancel_ai_search()
 
     # ── Helpers ──────────────────────────────────────────────────────────
 
