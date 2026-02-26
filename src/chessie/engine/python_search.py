@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from time import perf_counter
+from time import perf_counter, sleep
 
 from chessie.core.enums import Color, MoveFlag, PieceType
 from chessie.core.move import Move
@@ -32,10 +32,11 @@ def _never_cancelled() -> bool:
 class PythonSearchEngine(IEngine):
     """Classical chess searcher with iterative deepening and quiescence."""
 
-    __slots__ = ("_cancel_check", "_deadline", "_nodes")
+    __slots__ = ("_cancel_check", "_deadline", "_nodes", "_last_yield_nodes")
 
     def __init__(self) -> None:
         self._nodes = 0
+        self._last_yield_nodes = 0
         self._deadline: float | None = None
         self._cancel_check: CancelCheck = _never_cancelled
 
@@ -49,6 +50,7 @@ class PythonSearchEngine(IEngine):
             raise ValueError("Search depth must be >= 1")
 
         self._nodes = 0
+        self._last_yield_nodes = 0
         self._cancel_check = is_cancelled or _never_cancelled
         self._deadline = None
         if limits.time_limit_ms is not None:
@@ -227,6 +229,9 @@ class PythonSearchEngine(IEngine):
         )
 
     def _should_stop(self) -> bool:
+        if self._nodes - self._last_yield_nodes >= 4096:
+            self._last_yield_nodes = self._nodes
+            sleep(0.001)
         if self._cancel_check():
             return True
         return self._deadline is not None and perf_counter() >= self._deadline

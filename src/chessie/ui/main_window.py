@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, TypeVar
 
-from PyQt6.QtCore import QThread, pyqtSignal
+from PyQt6.QtCore import QThread, QTimer, pyqtSignal
 from PyQt6.QtGui import QAction, QCloseEvent
 from PyQt6.QtWidgets import (
     QFileDialog,
@@ -584,7 +584,13 @@ class MainWindow(QMainWindow):
 
         self._pending_engine_request = request_id
         self._pending_engine_fen = position_to_fen(position)
-        self.engine_request.emit(position.copy(), request_id)
+
+        # Delay engine start slightly to allow the UI to repaint the user's move
+        def _emit_if_valid() -> None:
+            if self._pending_engine_request == request_id:
+                self.engine_request.emit(position.copy(), request_id)
+
+        QTimer.singleShot(50, _emit_if_valid)
 
     def _cancel_ai_search(self) -> None:
         self._pending_engine_request = None
