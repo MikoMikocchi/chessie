@@ -125,3 +125,8 @@ class TestBoardOperations:
         text = repr(board)
         assert "K" in text
         assert "a b c d e f g h" in text
+
+    def test_board_is_unhashable(self) -> None:
+        board = Board.initial()
+        with pytest.raises(TypeError):
+            hash(board)

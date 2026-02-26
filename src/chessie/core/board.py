@@ -93,9 +93,6 @@ class Board:
             return NotImplemented
         return self._squares == other._squares
 
-    def __hash__(self) -> int:
-        return hash(tuple(self._squares))
-
     def __repr__(self) -> str:
         rows: list[str] = []
         for rank in range(7, -1, -1):
