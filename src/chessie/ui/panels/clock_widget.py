@@ -9,6 +9,7 @@ from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
 
 from chessie.core.enums import Color
+from chessie.ui.i18n import t
 
 
 class _SingleClock(QLabel):
@@ -76,17 +77,17 @@ class ClockWidget(QWidget):
         layout.setSpacing(8)
 
         w_box = QVBoxLayout()
-        w_label = QLabel("White")
-        w_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        w_label.setFont(QFont("Adwaita Sans", 9))
-        w_box.addWidget(w_label)
+        self._w_label = QLabel()
+        self._w_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._w_label.setFont(QFont("Adwaita Sans", 9))
+        w_box.addWidget(self._w_label)
         w_box.addWidget(self._white_clock)
 
         b_box = QVBoxLayout()
-        b_label = QLabel("Black")
-        b_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        b_label.setFont(QFont("Adwaita Sans", 9))
-        b_box.addWidget(b_label)
+        self._b_label = QLabel()
+        self._b_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._b_label.setFont(QFont("Adwaita Sans", 9))
+        b_box.addWidget(self._b_label)
         b_box.addWidget(self._black_clock)
 
         layout.addLayout(w_box)
@@ -96,6 +97,13 @@ class ClockWidget(QWidget):
         self._timer.setInterval(100)
         self._timer.timeout.connect(self._tick)
         self._get_remaining: Callable[[], tuple[float, float]] | None = None
+
+        self.retranslate_ui()
+
+    def retranslate_ui(self) -> None:
+        s = t()
+        self._w_label.setText(s.clock_white)
+        self._b_label.setText(s.clock_black)
 
     def start(self, get_remaining: Callable[[], tuple[float, float]]) -> None:
         """Start updating. *get_remaining* returns (white_sec, black_sec)."""

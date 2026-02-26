@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
 
 from chessie.core.enums import Color
 from chessie.game.interfaces import TimeControl
+from chessie.ui.i18n import t
 
 
 class _NewGameSettings:
@@ -39,18 +40,18 @@ class _NewGameSettings:
 class NewGameDialog(QDialog):
     """Modal dialog to configure a new game."""
 
+    # Keys are internal identifiers; display text is set via retranslate_ui
     PRESETS: dict[str, TimeControl] = {
         "Bullet 1+0": TimeControl.bullet_1m(),
         "Blitz 3+2": TimeControl.blitz_3m2s(),
         "Rapid 10+0": TimeControl.rapid_10m(),
         "Rapid 15+10": TimeControl.rapid_15m10s(),
         "Classical 30+0": TimeControl.classical_30m(),
-        "Unlimited": TimeControl.unlimited(),
+        "unlimited": TimeControl.unlimited(),
     }
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("New Game")
         self.setModal(True)
         self.setMinimumWidth(340)
         self.setWindowFlags(
@@ -59,23 +60,21 @@ class NewGameDialog(QDialog):
 
         self._settings: _NewGameSettings | None = None
         self._setup_ui()
+        self.retranslate_ui()
 
     def _setup_ui(self) -> None:
         main = QVBoxLayout(self)
-        form = QFormLayout()
-        form.setSpacing(10)
+        self._form = QFormLayout()
+        self._form.setSpacing(10)
 
-        # Opponent
         self._combo_opponent = QComboBox()
-        self._combo_opponent.addItems(["Human", "AI"])
         self._combo_opponent.setCurrentIndex(1)
-        form.addRow("Opponent:", self._combo_opponent)
+        self._form.addRow("", self._combo_opponent)
 
-        # Player color
         color_row = QHBoxLayout()
         self._grp_color = QButtonGroup(self)
-        self._rb_white = QRadioButton("♔ White")
-        self._rb_black = QRadioButton("♚ Black")
+        self._rb_white = QRadioButton()
+        self._rb_black = QRadioButton()
         self._rb_white.setChecked(True)
         self._rb_white.setFont(QFont("Adwaita Sans", 11))
         self._rb_black.setFont(QFont("Adwaita Sans", 11))
@@ -83,30 +82,60 @@ class NewGameDialog(QDialog):
         self._grp_color.addButton(self._rb_black, 1)
         color_row.addWidget(self._rb_white)
         color_row.addWidget(self._rb_black)
-        form.addRow("Play as:", color_row)
+        self._form.addRow("", color_row)
 
-        # Time control preset
         self._combo_time = QComboBox()
-        self._combo_time.addItems(list(self.PRESETS.keys()))
         self._combo_time.setCurrentIndex(2)  # Rapid 10+0
-        form.addRow("Time control:", self._combo_time)
+        self._form.addRow("", self._combo_time)
 
-        main.addLayout(form)
+        main.addLayout(self._form)
 
-        # Buttons
-        buttons = QDialogButtonBox(
+        self._buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
-        buttons.accepted.connect(self._on_accept)
-        buttons.rejected.connect(self.reject)
-        main.addWidget(buttons)
+        self._buttons.accepted.connect(self._on_accept)
+        self._buttons.rejected.connect(self.reject)
+        main.addWidget(self._buttons)
+
+    def retranslate_ui(self) -> None:
+        s = t()
+        self.setWindowTitle(s.new_game_title)
+
+        # Re-populate opponent combo preserving selection
+        cur_opp = self._combo_opponent.currentIndex()
+        self._combo_opponent.clear()
+        self._combo_opponent.addItems([s.new_game_human, s.new_game_ai])
+        self._combo_opponent.setCurrentIndex(max(0, cur_opp))
+
+        self._rb_white.setText(s.new_game_white)
+        self._rb_black.setText(s.new_game_black)
+
+        # Re-populate time combo preserving selection
+        cur_time = self._combo_time.currentIndex()
+        self._combo_time.clear()
+        preset_labels = list(self.PRESETS.keys())
+        preset_labels[-1] = s.new_game_unlimited  # last entry is "Unlimited"
+        self._combo_time.addItems(preset_labels)
+        self._combo_time.setCurrentIndex(max(0, cur_time))
+
+        # Update form row labels
+        for row, label_text in enumerate(
+            [s.new_game_opponent, s.new_game_play_as, s.new_game_time_control]
+        ):
+            label_item = self._form.itemAt(row, QFormLayout.ItemRole.LabelRole)
+            if label_item is not None and label_item.widget() is not None:
+                label_item.widget().setText(label_text)  # type: ignore[union-attr]
+            else:
+                self._form.setItem(row, QFormLayout.ItemRole.LabelRole,
+                                   self._form.itemAt(row, QFormLayout.ItemRole.LabelRole))
 
     def _on_accept(self) -> None:
-        preset_name = self._combo_time.currentText()
-        tc = self.PRESETS[preset_name]
+        time_idx = self._combo_time.currentIndex()
+        tc = list(self.PRESETS.values())[time_idx]
 
         color = Color.WHITE if self._rb_white.isChecked() else Color.BLACK
-        opponent = self._combo_opponent.currentText().lower()
+        opp_idx = self._combo_opponent.currentIndex()
+        opponent = "human" if opp_idx == 0 else "ai"
 
         self._settings = _NewGameSettings(
             opponent=opponent,

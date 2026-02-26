@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
 
 from chessie.core.enums import Color, PieceType
 from chessie.core.piece import Piece
+from chessie.ui.i18n import t
 from chessie.ui.resources import piece_pixmap
 
 
@@ -23,7 +24,6 @@ class PromotionDialog(QDialog):
 
     def __init__(self, color: Color, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Promote pawn")
         self.setModal(True)
         self.setFixedSize(340, 130)
         self.setWindowFlags(
@@ -33,10 +33,10 @@ class PromotionDialog(QDialog):
         self._selected: PieceType = PieceType.QUEEN
 
         layout = QVBoxLayout(self)
-        label = QLabel("Choose promotion piece:")
-        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        label.setFont(QFont("Adwaita Sans", 11))
-        layout.addWidget(label)
+        self._label = QLabel()
+        self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._label.setFont(QFont("Adwaita Sans", 11))
+        layout.addWidget(self._label)
 
         btn_row = QHBoxLayout()
         icon_size = 56
@@ -51,6 +51,12 @@ class PromotionDialog(QDialog):
             btn_row.addWidget(btn)
 
         layout.addLayout(btn_row)
+        self.retranslate_ui()
+
+    def retranslate_ui(self) -> None:
+        s = t()
+        self.setWindowTitle(s.promote_title)
+        self._label.setText(s.promote_label)
 
     def _choose(self, piece_type: PieceType) -> None:
         self._selected = piece_type
