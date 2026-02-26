@@ -29,6 +29,7 @@ from chessie.ui.board.board_view import BoardView
 from chessie.ui.dialogs.new_game_dialog import NewGameDialog
 from chessie.ui.dialogs.settings_dialog import AppSettings, SettingsDialog
 from chessie.ui.engine_session import EngineSession
+from chessie.ui.game_sync import GameSync
 from chessie.ui.i18n import set_language, t
 from chessie.ui.panels.clock_widget import ClockWidget
 from chessie.ui.panels.control_panel import ControlPanel
@@ -59,6 +60,25 @@ class MainWindow(QMainWindow):
         self._pgn_move_comments: list[str | None] = []
 
         self._setup_ui()
+
+        def _show_game_over_dialog(text: str) -> None:
+            QMessageBox.information(
+                self,
+                t().game_over_title,
+                text,
+            )
+
+        self._game_sync = GameSync(
+            controller=self._controller,
+            board_scene=self._board_view.board_scene,
+            move_panel=self._move_panel,
+            eval_bar=self._eval_bar,
+            control_panel=self._control_panel,
+            clock_widget=self._clock_widget,
+            sound_player=self._sound_player,
+            set_status=self._status_label.setText,
+            show_game_over_dialog=_show_game_over_dialog,
+        )
         self._engine_session = EngineSession(
             controller=self._controller,
             engine_request=self.engine_request,
@@ -286,30 +306,8 @@ class MainWindow(QMainWindow):
         super().closeEvent(event)
 
     def _after_new_game(self) -> None:
-        """Sync UI after a new game starts."""
-        state = self._controller.state
         self._pgn_move_comments = []
-        self._board_view.board_scene.set_position(state.position)
-        self._move_panel.clear()
-        self._eval_bar.reset()
-        self._control_panel.set_game_active(True)
-
-        # Clock
-        clock = self._controller.clock
-        if clock is not None and not clock.is_unlimited:
-            self._clock_widget.reset(clock.remaining(Color.WHITE))
-            self._clock_widget.set_active(state.side_to_move)
-            self._clock_widget.start(
-                lambda: (
-                    clock.remaining(Color.WHITE),
-                    clock.remaining(Color.BLACK),
-                )
-            )
-        else:
-            self._clock_widget.reset(0)
-
-        self._sync_board_interactivity()
-        self._update_status()
+        self._game_sync.after_new_game()
 
     # ── User actions ─────────────────────────────────────────────────────
 
@@ -441,43 +439,18 @@ class MainWindow(QMainWindow):
 
     def _on_game_move(self, move: Move, _san: str, state: GameState) -> None:
         """Called after every move (both human and AI)."""
-        if len(self._pgn_move_comments) < len(state.move_history):
-            self._pgn_move_comments.append(None)
-        elif len(self._pgn_move_comments) > len(state.move_history):
-            self._pgn_move_comments = self._pgn_move_comments[: len(state.move_history)]
-
-        if state.move_history and not self._is_loading_pgn:
-            self._sound_player.play_move_sound(state.move_history[-1], state)
-
-        self._board_view.board_scene.set_position(state.position)
-        self._board_view.board_scene.highlight_last_move(move)
-        self._board_view.board_scene.highlight_check()
-
-        record = state.move_history[-1]
-        ply = len(state.move_history) - 1
-        move_num = ply // 2 + 1
-        color = Color.WHITE if ply % 2 == 0 else Color.BLACK
-        self._move_panel.add_move(record, move_num, color)
-
-        # Update clock display
-        if self._controller.clock and not self._controller.clock.is_unlimited:
-            self._clock_widget.set_active(state.side_to_move)
-
-        self._sync_board_interactivity()
-        self._update_status()
+        self._pgn_move_comments = self._game_sync.on_game_move(
+            move,
+            state,
+            pgn_move_comments=self._pgn_move_comments,
+            is_loading_pgn=self._is_loading_pgn,
+        )
 
     def _on_game_over(self, result: GameResult) -> None:
-        self._clock_widget.stop()
-        self._board_view.board_scene.set_interactive(False)
-        self._control_panel.set_game_active(False)
-        text = self._game_over_text(result)
-        self._status_label.setText(f"{t().status_game_over}{text}")
-        if not self._is_loading_pgn:
-            QMessageBox.information(self, t().game_over_title, text)
+        self._game_sync.on_game_over(result, is_loading_pgn=self._is_loading_pgn)
 
     def _on_phase_changed(self, _phase: GamePhase) -> None:
-        self._sync_board_interactivity()
-        self._update_status()
+        self._game_sync.on_phase_changed(_phase)
 
     # ── Engine callbacks ──────────────────────────────────────────────────
 
@@ -490,36 +463,7 @@ class MainWindow(QMainWindow):
     # ── Helpers ──────────────────────────────────────────────────────────
 
     def _sync_board_interactivity(self) -> None:
-        state = self._controller.state
-        if state.is_game_over:
-            self._board_view.board_scene.set_interactive(False)
-            return
-
-        current = self._controller.current_player
-        interactive = current is not None and current.is_human
-        self._board_view.board_scene.set_interactive(interactive)
-
-    def _game_over_text(self, result: GameResult) -> str:
-        reason = self._controller.state.end_reason
-        s = t()
-
-        if result == GameResult.DRAW:
-            if reason == GameEndReason.STALEMATE:
-                return s.draw_stalemate
-            if reason == GameEndReason.DRAW_AGREED:
-                return s.draw_agreed
-            if reason == GameEndReason.DRAW_RULE:
-                return s.draw_rule
-            return s.draw_generic
-
-        winner = s.color_white if result == GameResult.WHITE_WINS else s.color_black
-        if reason == GameEndReason.CHECKMATE:
-            return s.wins_checkmate.format(color=winner)
-        if reason == GameEndReason.RESIGN:
-            return s.wins_resign.format(color=winner)
-        if reason == GameEndReason.FLAG_FALL:
-            return s.wins_time.format(color=winner)
-        return s.wins_generic.format(color=winner)
+        self._game_sync.sync_board_interactivity()
 
     @staticmethod
     def _termination_from_end_reason(reason: GameEndReason) -> str:
@@ -567,21 +511,7 @@ class MainWindow(QMainWindow):
         return mapping.get(normalized, GameEndReason.NONE)
 
     def _update_status(self) -> None:
-        state = self._controller.state
-        if state.is_game_over:
-            return
-        s = t()
-        side = s.color_white if state.side_to_move == Color.WHITE else s.color_black
-        phase_map = {
-            "NOT_STARTED": s.phase_not_started,
-            "AWAITING_MOVE": s.phase_awaiting_move,
-            "THINKING": s.phase_thinking,
-            "GAME_OVER": s.phase_game_over,
-        }
-        phase = phase_map.get(
-            state.phase.name, state.phase.name.replace("_", " ").capitalize()
-        )
-        self._status_label.setText(f"{side} | {phase} | {state.fullmove_display}")
+        self._game_sync.update_status()
 
     def _resolve_resign_color(self) -> Color:
         """
