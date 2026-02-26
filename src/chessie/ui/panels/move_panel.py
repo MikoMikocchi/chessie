@@ -52,6 +52,7 @@ class MovePanel(QWidget):
         self._records: list[MoveRecord] = []
         self._move_buttons: dict[int, QToolButton] = {}
         self._active_ply: int | None = None
+        self._use_figurine_notation = True
         self._setup_ui()
         self.retranslate_ui()
 
@@ -127,12 +128,24 @@ class MovePanel(QWidget):
         self._set_active_ply(ply)
         self.move_clicked.emit(ply)
 
+    def set_use_figurine_notation(self, enabled: bool) -> None:
+        """Toggle move text style between figurines and standard SAN letters."""
+        if self._use_figurine_notation == enabled:
+            return
+        self._use_figurine_notation = enabled
+        self._rebuild_list()
+
+    def _format_san(self, san: str, color: Color) -> str:
+        if self._use_figurine_notation:
+            return _figurine_san(san, color)
+        return san
+
     def _rebuild_list(self) -> None:
         self._list.clear()
         self._move_buttons.clear()
         for move_idx in range(0, len(self._records), 2):
             move_num = move_idx // 2 + 1
-            white_san = _figurine_san(self._records[move_idx].san, Color.WHITE)
+            white_san = self._format_san(self._records[move_idx].san, Color.WHITE)
 
             row_widget = QWidget()
             row_layout = QHBoxLayout(row_widget)
@@ -152,7 +165,10 @@ class MovePanel(QWidget):
             self._move_buttons[move_idx] = white_btn
 
             if move_idx + 1 < len(self._records):
-                black_san = _figurine_san(self._records[move_idx + 1].san, Color.BLACK)
+                black_san = self._format_san(
+                    self._records[move_idx + 1].san,
+                    Color.BLACK,
+                )
                 black_btn = self._create_move_button(black_san, move_idx + 1)
                 row_layout.addWidget(black_btn, 1)
                 self._move_buttons[move_idx + 1] = black_btn

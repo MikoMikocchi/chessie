@@ -109,6 +109,9 @@ class Strings:
     settings_show_coords: str
     settings_show_legal: str
     settings_animate_moves: str
+    settings_move_notation: str
+    settings_move_notation_icons: str
+    settings_move_notation_letters: str
 
     # Sound page
     settings_sound_enable: str
@@ -192,6 +195,9 @@ _EN = Strings(
     settings_show_coords="Show coordinates:",
     settings_show_legal="Show legal moves:",
     settings_animate_moves="Animate moves:",
+    settings_move_notation="Move notation:",
+    settings_move_notation_icons="Figurines",
+    settings_move_notation_letters="Letters (SAN)",
     settings_sound_enable="Enable sounds:",
     settings_sound_volume="Volume:",
     settings_engine_depth="Search depth:",
@@ -269,6 +275,9 @@ _RU = Strings(
     settings_show_coords="Показывать координаты:",
     settings_show_legal="Показывать возможные ходы:",
     settings_animate_moves="Анимация ходов:",
+    settings_move_notation="Нотация ходов:",
+    settings_move_notation_icons="Иконки фигур",
+    settings_move_notation_letters="Буквы (SAN)",
     settings_sound_enable="Включить звуки:",
     settings_sound_volume="Громкость:",
     settings_engine_depth="Глубина поиска:",

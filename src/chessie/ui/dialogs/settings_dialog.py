@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPainter, QPaintEvent
+from PyQt6.QtGui import QColor, QFont, QPainter, QPaintEvent
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -44,6 +44,7 @@ class AppSettings:
     show_coordinates: bool = True
     show_legal_moves: bool = True
     animate_moves: bool = True
+    use_figurine_notation: bool = True
 
     # Sound
     sound_enabled: bool = True
@@ -129,6 +130,27 @@ class _BoardPage(QWidget):
         self._anim_check.setChecked(settings.animate_moves)
         self._form.addRow(self._anim_label, self._anim_check)
 
+        self._notation_label = QLabel()
+        self._notation_combo = QComboBox()
+        self._notation_combo.addItem("", True)
+        self._notation_combo.addItem("", False)
+        self._set_notation_combo_texts()
+        self._notation_combo.setCurrentIndex(0 if settings.use_figurine_notation else 1)
+
+        self._notation_preview = _MoveNotationPreviewWidget()
+        self._notation_preview.set_use_figurine_notation(settings.use_figurine_notation)
+        self._notation_combo.currentIndexChanged.connect(self._on_notation_changed)
+
+        notation_row = QWidget()
+        notation_layout = QHBoxLayout(notation_row)
+        notation_layout.setContentsMargins(0, 0, 0, 0)
+        notation_layout.setSpacing(12)
+        self._notation_combo.setMinimumWidth(220)
+        notation_layout.addWidget(self._notation_combo)
+        notation_layout.addWidget(self._notation_preview)
+        notation_layout.addStretch()
+        self._form.addRow(self._notation_label, notation_row)
+
         self.retranslate_ui()
 
     def retranslate_ui(self) -> None:
@@ -138,12 +160,24 @@ class _BoardPage(QWidget):
         self._coords_label.setText(s.settings_show_coords)
         self._legal_label.setText(s.settings_show_legal)
         self._anim_label.setText(s.settings_animate_moves)
+        self._notation_label.setText(s.settings_move_notation)
+        self._set_notation_combo_texts()
+
+    def _set_notation_combo_texts(self) -> None:
+        s = t()
+        self._notation_combo.setItemText(0, s.settings_move_notation_icons)
+        self._notation_combo.setItemText(1, s.settings_move_notation_letters)
+
+    def _on_notation_changed(self) -> None:
+        enabled = bool(self._notation_combo.currentData())
+        self._notation_preview.set_use_figurine_notation(enabled)
 
     def apply(self, settings: AppSettings) -> None:
         settings.board_theme = self._theme_combo.currentText()
         settings.show_coordinates = self._coords_check.isChecked()
         settings.show_legal_moves = self._legal_check.isChecked()
         settings.animate_moves = self._anim_check.isChecked()
+        settings.use_figurine_notation = bool(self._notation_combo.currentData())
 
 
 class _BoardThemePreviewWidget(QWidget):
@@ -199,6 +233,49 @@ class _BoardThemePreviewWidget(QWidget):
 
         painter.drawPixmap(white_x, piece_y, white_pixmap)
         painter.drawPixmap(black_x, piece_y, black_pixmap)
+        painter.end()
+
+
+class _MoveNotationPreviewWidget(QWidget):
+    """Compact preview for move notation format selection."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._use_figurine_notation = True
+        self.setFixedSize(136, 72)
+
+    def set_use_figurine_notation(self, enabled: bool) -> None:
+        if self._use_figurine_notation == enabled:
+            return
+        self._use_figurine_notation = enabled
+        self.update()
+
+    def paintEvent(self, event: QPaintEvent | None) -> None:
+        del event
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        panel_w = 132
+        panel_h = 68
+        painter.fillRect(2, 2, panel_w, panel_h, QColor("#1e1e1e"))
+
+        number_font = QFont("Adwaita Sans", 10)
+        move_font = QFont("AdwaitaMono Nerd Font", 10)
+
+        white = "♘f3" if self._use_figurine_notation else "Nf3"
+        black = "♞c6" if self._use_figurine_notation else "Nc6"
+
+        painter.setFont(number_font)
+        painter.setPen(QColor("#9f9f9f"))
+        painter.drawText(10, 28, "1")
+        painter.drawText(10, 50, "2")
+
+        painter.setFont(move_font)
+        painter.setPen(QColor("#d4d4d4"))
+        painter.drawText(30, 28, "e4")
+        painter.drawText(78, 28, "e5")
+        painter.drawText(30, 50, white)
+        painter.drawText(78, 50, black)
         painter.end()
 
 
