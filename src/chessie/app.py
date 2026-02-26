@@ -10,14 +10,14 @@ def _load_app_fonts() -> None:
     """Register bundled fonts for consistent cross-platform rendering."""
     from PyQt6.QtGui import QFontDatabase
 
-    font_path = (
-        Path(__file__).resolve().parents[2]
-        / "assets"
-        / "fonts"
-        / "AdwaitaSans-Regular.ttf"
-    )
-    if font_path.is_file():
-        QFontDatabase.addApplicationFont(str(font_path))
+    fonts_dir = Path(__file__).resolve().parents[2] / "assets" / "fonts"
+    for font_name in (
+        "AdwaitaSans-Regular.ttf",
+        "AdwaitaMonoNerdFont-Regular.ttf",
+    ):
+        font_path = fonts_dir / font_name
+        if font_path.is_file():
+            QFontDatabase.addApplicationFont(str(font_path))
 
 
 def main() -> None:

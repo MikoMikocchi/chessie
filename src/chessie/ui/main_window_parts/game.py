@@ -6,6 +6,7 @@ from typing import Any, cast
 
 from chessie.core.enums import Color
 from chessie.core.move import Move
+from chessie.core.notation import position_from_fen
 from chessie.game.interfaces import IPlayer, TimeControl
 from chessie.game.player import HumanPlayer
 from chessie.ui.dialogs.new_game_dialog import NewGameDialog
@@ -49,6 +50,7 @@ def on_new_game_dialog(host: Any) -> None:
 
 def on_user_move(host: Any, move: Move) -> None:
     """Handle a move from the board UI."""
+    host._history_view_ply = None
     host._controller.submit_move(move)
 
 
@@ -117,6 +119,7 @@ def on_undo(host: Any) -> None:
     )
     host._board_view.board_scene.highlight_check()
     host._move_panel.set_history(state.move_history)
+    host._history_view_ply = None
     if len(host._pgn_move_comments) > len(state.move_history):
         host._pgn_move_comments = host._pgn_move_comments[: len(state.move_history)]
     host._sync_board_interactivity()
@@ -126,6 +129,34 @@ def on_undo(host: Any) -> None:
 def on_flip(host: Any) -> None:
     scene = host._board_view.board_scene
     scene.set_flipped(not scene.is_flipped())
+
+
+def on_move_history_selected(host: Any, ply: int) -> None:
+    """Jump the board view to the position right after selected *ply*."""
+    state = host._controller.state
+    history = state.move_history
+    if not history or ply < 0 or ply >= len(history):
+        return
+
+    last_ply = len(history) - 1
+    scene = host._board_view.board_scene
+
+    # Latest ply = live board state; older ply = history preview mode.
+    if ply == last_ply:
+        host._history_view_ply = None
+        scene.set_position(state.position)
+        scene.highlight_last_move(history[-1].move)
+        scene.highlight_check()
+        host._sync_board_interactivity()
+        host._update_status()
+        return
+
+    preview_pos = position_from_fen(history[ply].fen_after)
+    host._history_view_ply = ply
+    scene.set_position(preview_pos)
+    scene.highlight_last_move(history[ply].move)
+    scene.highlight_check()
+    scene.set_interactive(False)
 
 
 def resolve_resign_color(host: Any) -> Color:

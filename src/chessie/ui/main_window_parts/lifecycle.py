@@ -15,6 +15,7 @@ from chessie.ui.i18n import t
 def connect_signals(host: Any) -> None:
     """Connect Qt widget signals."""
     host._board_view.move_made.connect(host._on_user_move)
+    host._move_panel.move_clicked.connect(host._on_move_history_selected)
     host._control_panel.new_game_clicked.connect(host._on_new_game_dialog)
     host._control_panel.resign_clicked.connect(host._on_resign)
     host._control_panel.draw_clicked.connect(host._on_draw)
@@ -46,11 +47,13 @@ def disconnect_game_events(host: Any) -> None:
 def after_new_game(host: Any) -> None:
     """Reset auxiliary UI state after creating a new game."""
     host._pgn_move_comments = []
+    host._history_view_ply = None
     host._game_sync.after_new_game()
 
 
 def on_game_move(host: Any, move: Move, state: GameState) -> None:
     """Handle post-move synchronization for both human and AI moves."""
+    host._history_view_ply = None
     host._pgn_move_comments = host._game_sync.on_game_move(
         move,
         state,

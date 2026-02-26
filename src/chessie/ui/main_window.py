@@ -59,6 +59,7 @@ class MainWindow(QMainWindow):
         self._sound_player = SoundPlayer()
         self._is_loading_pgn = False
         self._pgn_move_comments: list[str | None] = []
+        self._history_view_ply: int | None = None
 
         self._setup_ui()
 
@@ -179,6 +180,9 @@ class MainWindow(QMainWindow):
     def _on_flip(self) -> None:
         game_part.on_flip(self)
 
+    def _on_move_history_selected(self, ply: int) -> None:
+        game_part.on_move_history_selected(self, ply)
+
     def _on_settings(self) -> None:
         settings_part.on_settings(self, settings_dialog_cls=SettingsDialog)
 
@@ -210,6 +214,9 @@ class MainWindow(QMainWindow):
     # ── Helpers ──────────────────────────────────────────────────────────
 
     def _sync_board_interactivity(self) -> None:
+        if self._history_view_ply is not None:
+            self._board_view.board_scene.set_interactive(False)
+            return
         lifecycle_part.sync_board_interactivity(self)
 
     @staticmethod
