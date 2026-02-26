@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QPainter, QPaintEvent
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -22,7 +23,11 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from chessie.core.enums import Color, PieceType
+from chessie.core.piece import Piece
 from chessie.ui.i18n import LANGUAGES, t
+from chessie.ui.resources import piece_pixmap
+from chessie.ui.styles.theme import BoardTheme
 
 # ── Settings data class ──────────────────────────────────────────────────────
 
@@ -93,9 +98,20 @@ class _BoardPage(QWidget):
 
         self._theme_label = QLabel()
         self._theme_combo = QComboBox()
-        self._theme_combo.addItems(["Classic", "Blue"])
+        self._theme_combo.addItems(["Classic", "Blue", "Green", "Walnut", "Slate"])
         self._theme_combo.setCurrentText(settings.board_theme)
-        self._form.addRow(self._theme_label, self._theme_combo)
+        self._preview = _BoardThemePreviewWidget(settings.board_theme)
+        self._theme_combo.currentTextChanged.connect(self._preview.set_theme_name)
+
+        theme_row = QWidget()
+        theme_layout = QHBoxLayout(theme_row)
+        theme_layout.setContentsMargins(0, 0, 0, 0)
+        theme_layout.setSpacing(12)
+        self._theme_combo.setMinimumWidth(220)
+        theme_layout.addWidget(self._theme_combo)
+        theme_layout.addWidget(self._preview)
+        theme_layout.addStretch()
+        self._form.addRow(self._theme_label, theme_row)
 
         self._coords_label = QLabel()
         self._coords_check = QCheckBox()
@@ -120,6 +136,62 @@ class _BoardPage(QWidget):
         settings.board_theme = self._theme_combo.currentText()
         settings.show_coordinates = self._coords_check.isChecked()
         settings.show_legal_moves = self._legal_check.isChecked()
+
+
+class _BoardThemePreviewWidget(QWidget):
+    """Compact board appearance preview for theme selection."""
+
+    _THEME_MAP: dict[str, BoardTheme] = {
+        "Classic": BoardTheme.default(),
+        "Blue": BoardTheme.blue(),
+        "Green": BoardTheme.green(),
+        "Walnut": BoardTheme.walnut(),
+        "Slate": BoardTheme.slate(),
+    }
+
+    def __init__(self, theme_name: str) -> None:
+        super().__init__()
+        self._theme_name = theme_name
+        self.setFixedSize(136, 72)
+
+    def set_theme_name(self, theme_name: str) -> None:
+        if self._theme_name == theme_name:
+            return
+        self._theme_name = theme_name
+        self.update()
+
+    def paintEvent(self, event: QPaintEvent | None) -> None:
+        del event
+        square = 64
+        board_x = 2
+        board_y = 2
+        piece_size = 56
+
+        theme = self._THEME_MAP.get(self._theme_name, BoardTheme.default())
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+
+        frame_w = (square * 2) + 4
+        frame_h = square + 4
+        painter.fillRect(0, 0, frame_w, frame_h, Qt.GlobalColor.black)
+
+        painter.fillRect(board_x, board_y, square, square, theme.light_square)
+        painter.fillRect(board_x + square, board_y, square, square, theme.dark_square)
+
+        white_piece = Piece(Color.WHITE, PieceType.KING)
+        black_piece = Piece(Color.BLACK, PieceType.QUEEN)
+
+        white_pixmap = piece_pixmap(white_piece, piece_size)
+        black_pixmap = piece_pixmap(black_piece, piece_size)
+
+        white_x = board_x + (square - piece_size) // 2
+        black_x = board_x + square + (square - piece_size) // 2
+        piece_y = board_y + (square - piece_size) // 2
+
+        painter.drawPixmap(white_x, piece_y, white_pixmap)
+        painter.drawPixmap(black_x, piece_y, black_pixmap)
+        painter.end()
 
 
 class _SoundPage(QWidget):
@@ -241,7 +313,7 @@ class SettingsDialog(QDialog):
     ) -> None:
         super().__init__(parent)
         self.setModal(True)
-        self.setMinimumSize(560, 340)
+        self.setMinimumSize(720, 460)
         self.setWindowFlags(
             self.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint
         )

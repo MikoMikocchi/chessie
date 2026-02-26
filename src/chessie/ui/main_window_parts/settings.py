@@ -27,6 +27,9 @@ def apply_settings(host: Any) -> None:
     theme_map = {
         "Classic": BoardTheme.default(),
         "Blue": BoardTheme.blue(),
+        "Green": BoardTheme.green(),
+        "Walnut": BoardTheme.walnut(),
+        "Slate": BoardTheme.slate(),
     }
     scene.set_theme(theme_map.get(s.board_theme, BoardTheme.default()))
     scene.set_show_coordinates(s.show_coordinates)

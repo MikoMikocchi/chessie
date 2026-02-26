@@ -49,6 +49,48 @@ class BoardTheme:
             coord_dark=QColor(222, 227, 230),
         )
 
+    @classmethod
+    def green(cls) -> BoardTheme:
+        return cls(
+            light_square=QColor(236, 238, 220),
+            dark_square=QColor(112, 149, 120),
+            highlight_from=QColor(255, 255, 0, 100),
+            highlight_to=QColor(0, 0, 0, 40),
+            highlight_check=QColor(255, 0, 0, 120),
+            last_move_from=QColor(155, 199, 0, 105),
+            last_move_to=QColor(155, 199, 0, 105),
+            coord_light=QColor(112, 149, 120),
+            coord_dark=QColor(236, 238, 220),
+        )
+
+    @classmethod
+    def walnut(cls) -> BoardTheme:
+        return cls(
+            light_square=QColor(228, 210, 184),
+            dark_square=QColor(118, 74, 47),
+            highlight_from=QColor(255, 255, 0, 100),
+            highlight_to=QColor(0, 0, 0, 40),
+            highlight_check=QColor(255, 0, 0, 120),
+            last_move_from=QColor(155, 199, 0, 105),
+            last_move_to=QColor(155, 199, 0, 105),
+            coord_light=QColor(118, 74, 47),
+            coord_dark=QColor(228, 210, 184),
+        )
+
+    @classmethod
+    def slate(cls) -> BoardTheme:
+        return cls(
+            light_square=QColor(224, 226, 231),
+            dark_square=QColor(101, 110, 122),
+            highlight_from=QColor(255, 255, 0, 100),
+            highlight_to=QColor(0, 0, 0, 40),
+            highlight_check=QColor(255, 0, 0, 120),
+            last_move_from=QColor(155, 199, 0, 105),
+            last_move_to=QColor(155, 199, 0, 105),
+            coord_light=QColor(101, 110, 122),
+            coord_dark=QColor(224, 226, 231),
+        )
+
 
 # ── Application-wide QSS ────────────────────────────────────────────────────
 
