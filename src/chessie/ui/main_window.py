@@ -256,8 +256,7 @@ class MainWindow(QMainWindow):
         state = self._controller.state
         if state.is_game_over:
             return
-        # Determine which side the human is playing
-        human_color = self._find_human_color()
+        resigning_color = self._resolve_resign_color()
         reply = QMessageBox.question(
             self,
             "Resign",
@@ -265,7 +264,7 @@ class MainWindow(QMainWindow):
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
-            self._controller.resign(human_color)
+            self._controller.resign(resigning_color)
 
     def _on_draw(self) -> None:
         state = self._controller.state
@@ -433,10 +432,22 @@ class MainWindow(QMainWindow):
         phase = state.phase.name.replace("_", " ").capitalize()
         self._status_label.setText(f"{side} · {phase} · Move {state.fullmove_display}")
 
-    def _find_human_color(self) -> Color:
-        """Return the color of the first human player found."""
-        for c in (Color.WHITE, Color.BLACK):
-            p = self._controller.player(c)
-            if p and p.is_human:
-                return c
-        return Color.WHITE
+    def _resolve_resign_color(self) -> Color:
+        """
+        Resolve who is resigning from UI intent.
+
+        Human vs Human: current side to move resigns.
+        Human vs AI: human side resigns.
+        """
+        white_player = self._controller.player(Color.WHITE)
+        black_player = self._controller.player(Color.BLACK)
+        white_is_human = bool(white_player and white_player.is_human)
+        black_is_human = bool(black_player and black_player.is_human)
+
+        if white_is_human and black_is_human:
+            return self._controller.state.side_to_move
+        if white_is_human:
+            return Color.WHITE
+        if black_is_human:
+            return Color.BLACK
+        return self._controller.state.side_to_move
