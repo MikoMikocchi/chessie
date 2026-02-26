@@ -272,10 +272,17 @@ class MainWindow(QMainWindow):
             return
         offering_color = state.side_to_move
         self._controller.offer_draw(offering_color)
-        # For human–human, auto-accept
+
+        # In human-vs-human mode, draw is immediate (no second-side confirmation).
         white_p = self._controller.player(Color.WHITE)
         black_p = self._controller.player(Color.BLACK)
-        if white_p and black_p and white_p.is_human and black_p.is_human:
+        is_human_vs_human = (
+            white_p is not None
+            and black_p is not None
+            and white_p.is_human
+            and black_p.is_human
+        )
+        if is_human_vs_human:
             self._controller.accept_draw(offering_color.opposite)
 
     def _on_undo(self) -> None:
