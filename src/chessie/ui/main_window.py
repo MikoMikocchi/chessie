@@ -149,6 +149,7 @@ class MainWindow(QMainWindow):
         self._engine_worker.moveToThread(self._engine_thread)
         self.engine_request.connect(self._engine_worker.request_move)
         self._engine_worker.best_move_ready.connect(self._on_engine_best_move)
+        self._engine_worker.search_cancelled.connect(self._on_engine_cancelled)
         self._engine_worker.search_error.connect(self._on_engine_error)
         self._engine_thread.start()
 
@@ -403,6 +404,13 @@ class MainWindow(QMainWindow):
             return
 
         self._status_label.setText(f"Engine error: {message}")
+        self._sync_board_interactivity()
+
+    def _on_engine_cancelled(self, request_id: int) -> None:
+        if request_id != self._pending_engine_request:
+            return
+        self._pending_engine_request = None
+        self._pending_engine_fen = None
         self._sync_board_interactivity()
 
     # ── Helpers ──────────────────────────────────────────────────────────

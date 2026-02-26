@@ -15,6 +15,7 @@ class EngineWorker(QObject):
     """Thread-affine worker that computes engine moves on demand."""
 
     best_move_ready = pyqtSignal(int, object, int, int, int)
+    search_cancelled = pyqtSignal(int)
     search_error = pyqtSignal(int, str)
 
     __slots__ = ("_cancel_event", "_engine", "_limits")
@@ -48,7 +49,11 @@ class EngineWorker(QObject):
             self.search_error.emit(request_id, str(exc))
             return
 
-        if self._cancel_event.is_set() or result.best_move is None:
+        if self._cancel_event.is_set():
+            self.search_cancelled.emit(request_id)
+            return
+
+        if result.best_move is None:
             return
 
         self.best_move_ready.emit(
