@@ -3,41 +3,27 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from pathlib import Path
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtGui import QAction, QCloseEvent
-from PyQt6.QtWidgets import (
-    QFileDialog,
-    QHBoxLayout,
-    QLabel,
-    QMainWindow,
-    QMessageBox,
-    QStatusBar,
-    QVBoxLayout,
-    QWidget,
-)
+from PyQt6.QtGui import QCloseEvent
+from PyQt6.QtWidgets import QFileDialog, QMainWindow, QMessageBox
 
 from chessie.core.enums import Color, GameResult
 from chessie.core.move import Move
 from chessie.game.controller import GameController
-from chessie.game.interfaces import GameEndReason, GamePhase, IPlayer, TimeControl
-from chessie.game.player import AIPlayer, HumanPlayer
+from chessie.game.interfaces import GameEndReason, GamePhase
+from chessie.game.player import AIPlayer
 from chessie.game.state import GameState
-from chessie.ui.board.board_view import BoardView
-from chessie.ui.dialogs.new_game_dialog import NewGameDialog
 from chessie.ui.dialogs.settings_dialog import AppSettings, SettingsDialog
 from chessie.ui.engine_session import EngineSession
 from chessie.ui.game_sync import GameSync
-from chessie.ui.i18n import set_language, t
-from chessie.ui.panels.clock_widget import ClockWidget
-from chessie.ui.panels.control_panel import ControlPanel
-from chessie.ui.panels.eval_bar import EvalBar
-from chessie.ui.panels.move_panel import MovePanel
-from chessie.ui.pgn_io import load_pgn_file, save_pgn_file
+from chessie.ui.main_window_parts import game as game_part
+from chessie.ui.main_window_parts import lifecycle as lifecycle_part
+from chessie.ui.main_window_parts import pgn as pgn_part
+from chessie.ui.main_window_parts import settings as settings_part
+from chessie.ui.main_window_parts import ui as ui_part
 from chessie.ui.sounds import SoundPlayer
-from chessie.ui.styles.theme import BoardTheme
 
 TCallback = TypeVar("TCallback", bound=Callable[..., None])
 
@@ -46,6 +32,21 @@ class MainWindow(QMainWindow):
     """Main application window for Chessie."""
 
     engine_request = pyqtSignal(object, int)
+    _board_view: Any
+    _move_panel: Any
+    _eval_bar: Any
+    _control_panel: Any
+    _clock_widget: Any
+    _status: Any
+    _status_label: Any
+    _menu_game: Any
+    _menu_settings: Any
+    _act_new_game: Any
+    _act_open_pgn: Any
+    _act_save_pgn: Any
+    _act_flip: Any
+    _act_quit: Any
+    _act_settings: Any
 
     def __init__(self) -> None:
         super().__init__()
@@ -62,10 +63,10 @@ class MainWindow(QMainWindow):
         self._setup_ui()
 
         def _show_game_over_dialog(text: str) -> None:
-            QMessageBox.information(
+            lifecycle_part.show_game_over_dialog(
                 self,
-                t().game_over_title,
                 text,
+                message_box_cls=QMessageBox,
             )
 
         self._game_sync = GameSync(
@@ -100,119 +101,24 @@ class MainWindow(QMainWindow):
     # ── UI setup ─────────────────────────────────────────────────────────
 
     def _setup_ui(self) -> None:
-        central = QWidget()
-        self.setCentralWidget(central)
-        root = QHBoxLayout(central)
-        root.setContentsMargins(6, 6, 6, 6)
-        root.setSpacing(6)
-
-        # Eval bar (left)
-        self._eval_bar = EvalBar()
-        root.addWidget(self._eval_bar)
-
-        # Board (center)
-        self._board_view = BoardView()
-        root.addWidget(self._board_view, stretch=3)
-
-        # Right panel
-        right = QVBoxLayout()
-        right.setSpacing(6)
-
-        self._clock_widget = ClockWidget()
-        right.addWidget(self._clock_widget)
-
-        self._move_panel = MovePanel()
-        right.addWidget(self._move_panel, stretch=1)
-
-        self._control_panel = ControlPanel()
-        right.addWidget(self._control_panel)
-
-        right_widget = QWidget()
-        right_widget.setLayout(right)
-        right_widget.setFixedWidth(280)
-        root.addWidget(right_widget)
-
-        # Status bar
-        self._status = QStatusBar()
-        self.setStatusBar(self._status)
-        self._status_label = QLabel(t().status_ready)
-        self._status.addWidget(self._status_label)
+        ui_part.setup_ui(self)
 
     def _setup_menu(self) -> None:
-        menu_bar = self.menuBar()
-        assert menu_bar is not None
-        s = t()
-
-        # Game menu
-        self._menu_game = menu_bar.addMenu(s.menu_game)
-        assert self._menu_game is not None
-
-        self._act_new_game = QAction(s.menu_new_game, self)
-        self._act_new_game.setShortcut("Ctrl+N")
-        self._act_new_game.triggered.connect(self._on_new_game_dialog)
-        self._menu_game.addAction(self._act_new_game)
-
-        self._act_open_pgn = QAction(s.menu_open_pgn, self)
-        self._act_open_pgn.setShortcut("Ctrl+O")
-        self._act_open_pgn.triggered.connect(self._on_open_pgn)
-        self._menu_game.addAction(self._act_open_pgn)
-
-        self._act_save_pgn = QAction(s.menu_save_pgn, self)
-        self._act_save_pgn.setShortcut("Ctrl+S")
-        self._act_save_pgn.triggered.connect(self._on_save_pgn)
-        self._menu_game.addAction(self._act_save_pgn)
-
-        self._menu_game.addSeparator()
-
-        self._act_flip = QAction(s.menu_flip_board, self)
-        self._act_flip.setShortcut("F")
-        self._act_flip.triggered.connect(self._on_flip)
-        self._menu_game.addAction(self._act_flip)
-
-        self._menu_game.addSeparator()
-
-        self._act_quit = QAction(s.menu_quit, self)
-        self._act_quit.setShortcut("Ctrl+Q")
-        self._act_quit.triggered.connect(self.close)
-        self._menu_game.addAction(self._act_quit)
-
-        # Settings menu
-        self._menu_settings = menu_bar.addMenu(s.menu_settings)
-        assert self._menu_settings is not None
-
-        self._act_settings = QAction(s.menu_settings_action, self)
-        self._act_settings.setShortcut("Ctrl+,")
-        self._act_settings.triggered.connect(self._on_settings)
-        self._menu_settings.addAction(self._act_settings)
+        ui_part.setup_menu(self)
 
     # ── Signal wiring ────────────────────────────────────────────────────
 
     def _connect_signals(self) -> None:
-        """Connect Qt widget signals."""
-        self._board_view.move_made.connect(self._on_user_move)
-        self._control_panel.new_game_clicked.connect(self._on_new_game_dialog)
-        self._control_panel.resign_clicked.connect(self._on_resign)
-        self._control_panel.draw_clicked.connect(self._on_draw)
-        self._control_panel.undo_clicked.connect(self._on_undo)
-        self._control_panel.flip_clicked.connect(self._on_flip)
+        lifecycle_part.connect_signals(self)
 
     def _setup_engine(self) -> None:
-        """Set up engine worker session in a dedicated QThread."""
-        self._engine_session.setup()
+        lifecycle_part.setup_engine(self)
 
     def _connect_game_events(self) -> None:
-        """Subscribe to GameController callbacks (idempotent)."""
-        events = self._controller.events
-        self._replace_callback(events.on_move, self._on_game_move)
-        self._replace_callback(events.on_game_over, self._on_game_over)
-        self._replace_callback(events.on_phase_changed, self._on_phase_changed)
+        lifecycle_part.connect_game_events(self)
 
     def _disconnect_game_events(self) -> None:
-        """Detach this window from GameController callbacks."""
-        events = self._controller.events
-        self._remove_callback(events.on_move, self._on_game_move)
-        self._remove_callback(events.on_game_over, self._on_game_over)
-        self._remove_callback(events.on_phase_changed, self._on_phase_changed)
+        lifecycle_part.disconnect_game_events(self)
 
     @staticmethod
     def _replace_callback(
@@ -229,76 +135,24 @@ class MainWindow(QMainWindow):
     # ── Game lifecycle ───────────────────────────────────────────────────
 
     def _start_default_game(self) -> None:
-        """Start a quick human-vs-human unlimited game."""
-        self._cancel_ai_search()
-        white = HumanPlayer(Color.WHITE, t().color_white)
-        black = HumanPlayer(Color.BLACK, t().color_black)
-        self._connect_game_events()
-        self._controller.new_game(white, black, TimeControl.unlimited())
-        self._after_new_game()
+        game_part.start_default_game(self)
 
     def _on_new_game_dialog(self) -> None:
-        settings = NewGameDialog.ask(self)
-        if settings is None:
-            return
-
-        white: IPlayer
-        black: IPlayer
-        if settings.opponent == "human":
-            self._cancel_ai_search()
-            white = HumanPlayer(Color.WHITE, t().color_white)
-            black = HumanPlayer(Color.BLACK, t().color_black)
-        else:
-            self._cancel_ai_search()
-            if settings.player_color == Color.WHITE:
-                white = HumanPlayer(Color.WHITE, t().new_game_white)
-                black = self._create_ai_player(Color.BLACK)
-            else:
-                white = self._create_ai_player(Color.WHITE)
-                black = HumanPlayer(Color.BLACK, t().new_game_black)
-
-        self._connect_game_events()
-        self._controller.new_game(white, black, settings.time_control)
-        self._after_new_game()
+        game_part.on_new_game_dialog(self)
 
     def _on_open_pgn(self) -> None:
-        file_path, _ = QFileDialog.getOpenFileName(
+        pgn_part.on_open_pgn(
             self,
-            t().open_pgn_title,
-            "",
-            f"{t().pgn_filter};;{t().pgn_all_files}",
+            file_dialog_cls=QFileDialog,
+            message_box_cls=QMessageBox,
         )
-        if not file_path:
-            return
-
-        try:
-            load_pgn_file(self, Path(file_path))
-            self._status_label.setText(
-                t().status_loaded_pgn.format(name=Path(file_path).name)
-            )
-        except Exception as exc:
-            self._is_loading_pgn = False
-            QMessageBox.warning(
-                self, t().open_pgn_title, t().open_pgn_failed.format(exc=exc)
-            )
 
     def _on_save_pgn(self) -> None:
-        file_path, _ = QFileDialog.getSaveFileName(
+        pgn_part.on_save_pgn(
             self,
-            t().save_pgn_title,
-            "game.pgn",
-            f"{t().pgn_filter};;{t().pgn_all_files}",
+            file_dialog_cls=QFileDialog,
+            message_box_cls=QMessageBox,
         )
-        if not file_path:
-            return
-
-        try:
-            save_path = save_pgn_file(self, Path(file_path))
-            self._status_label.setText(t().status_saved_pgn.format(name=save_path.name))
-        except Exception as exc:
-            QMessageBox.warning(
-                self, t().save_pgn_title, t().save_pgn_failed.format(exc=exc)
-            )
 
     def closeEvent(self, event: QCloseEvent | None) -> None:
         self._disconnect_game_events()
@@ -306,248 +160,74 @@ class MainWindow(QMainWindow):
         super().closeEvent(event)
 
     def _after_new_game(self) -> None:
-        self._pgn_move_comments = []
-        self._game_sync.after_new_game()
+        lifecycle_part.after_new_game(self)
 
     # ── User actions ─────────────────────────────────────────────────────
 
     def _on_user_move(self, move: Move) -> None:
-        """Handle a move from the board UI."""
-        self._controller.submit_move(move)
+        game_part.on_user_move(self, move)
 
     def _on_resign(self) -> None:
-        state = self._controller.state
-        if state.is_game_over:
-            return
-        resigning_color = self._resolve_resign_color()
-        reply = QMessageBox.question(
-            self,
-            t().resign_title,
-            t().resign_confirm,
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply == QMessageBox.StandardButton.Yes:
-            self._controller.resign(resigning_color)
+        game_part.on_resign(self, message_box_cls=QMessageBox)
 
     def _on_draw(self) -> None:
-        state = self._controller.state
-        if state.is_game_over:
-            return
-        offering_color = state.side_to_move
-        self._controller.offer_draw(offering_color)
-
-        if self._is_human_vs_human():
-            side = t().color_white if offering_color == Color.WHITE else t().color_black
-            reply = QMessageBox.question(
-                self,
-                t().draw_offer_title,
-                t().draw_offer_question.format(color=side),
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            )
-            if reply == QMessageBox.StandardButton.Yes:
-                self._controller.accept_draw(offering_color.opposite)
-            else:
-                self._controller.decline_draw()
-            return
-
-        # MVP policy for AI: always decline human draw offers.
-        self._controller.decline_draw()
-        self._status_label.setText(t().status_draw_declined)
+        game_part.on_draw(self, message_box_cls=QMessageBox)
 
     def _on_undo(self) -> None:
-        if not self._controller.undo_move():
-            return
-
-        state = self._controller.state
-        # Human-vs-AI UX: one click should roll back the full turn pair.
-        if self._is_human_vs_ai():
-            current = self._controller.current_player
-            if (
-                current is not None
-                and not current.is_human
-                and state.move_history
-                and self._controller.undo_move()
-            ):
-                state = self._controller.state
-
-        self._board_view.board_scene.set_position(state.position)
-        self._board_view.board_scene.highlight_last_move(
-            state.move_history[-1].move if state.move_history else None
-        )
-        self._board_view.board_scene.highlight_check()
-        self._move_panel.set_history(state.move_history)
-        if len(self._pgn_move_comments) > len(state.move_history):
-            self._pgn_move_comments = self._pgn_move_comments[: len(state.move_history)]
-        self._sync_board_interactivity()
-        self._update_status()
+        game_part.on_undo(self)
 
     def _on_flip(self) -> None:
-        scene = self._board_view.board_scene
-        scene.set_flipped(not scene.is_flipped())
+        game_part.on_flip(self)
 
     def _on_settings(self) -> None:
-        dlg = SettingsDialog(self._settings, self)
-        if dlg.exec():
-            self._apply_settings()
+        settings_part.on_settings(self, settings_dialog_cls=SettingsDialog)
 
     def _apply_settings(self) -> None:
-        s = self._settings
-
-        # Language must come first so all retranslate calls use the new locale
-        set_language(s.language)
-        self.retranslate_ui()
-
-        scene = self._board_view.board_scene
-
-        # Board
-        theme_map = {
-            "Classic": BoardTheme.default(),
-            "Blue": BoardTheme.blue(),
-        }
-        scene.set_theme(theme_map.get(s.board_theme, BoardTheme.default()))
-        scene.set_show_coordinates(s.show_coordinates)
-        scene.set_show_legal_moves(s.show_legal_moves)
-
-        # Sound
-        self._sound_player.set_enabled(s.sound_enabled)
-        self._sound_player.set_volume(s.sound_volume)
-
-        # Engine (applied to subsequent searches; doesn't interrupt current)
-        self._engine_session.set_limits(s.engine_depth, s.engine_time_ms)
+        settings_part.apply_settings(self)
 
     def retranslate_ui(self) -> None:
-        """Update all translatable strings when the locale changes."""
-        s = t()
-        assert self._menu_game is not None
-        assert self._menu_settings is not None
-        # Menu bar
-        self._menu_game.setTitle(s.menu_game)
-        self._act_new_game.setText(s.menu_new_game)
-        self._act_open_pgn.setText(s.menu_open_pgn)
-        self._act_save_pgn.setText(s.menu_save_pgn)
-        self._act_flip.setText(s.menu_flip_board)
-        self._act_quit.setText(s.menu_quit)
-        self._menu_settings.setTitle(s.menu_settings)
-        self._act_settings.setText(s.menu_settings_action)
-        # Child widgets
-        self._move_panel.retranslate_ui()
-        self._control_panel.retranslate_ui()
-        self._clock_widget.retranslate_ui()
-        self._update_status()
+        ui_part.retranslate_ui(self)
 
     # ── Game event callbacks ─────────────────────────────────────────────
 
     def _on_game_move(self, move: Move, _san: str, state: GameState) -> None:
-        """Called after every move (both human and AI)."""
-        self._pgn_move_comments = self._game_sync.on_game_move(
-            move,
-            state,
-            pgn_move_comments=self._pgn_move_comments,
-            is_loading_pgn=self._is_loading_pgn,
-        )
+        lifecycle_part.on_game_move(self, move, state)
 
     def _on_game_over(self, result: GameResult) -> None:
-        self._game_sync.on_game_over(result, is_loading_pgn=self._is_loading_pgn)
+        lifecycle_part.on_game_over(self, result)
 
-    def _on_phase_changed(self, _phase: GamePhase) -> None:
-        self._game_sync.on_phase_changed(_phase)
+    def _on_phase_changed(self, phase: GamePhase) -> None:
+        lifecycle_part.on_phase_changed(self, phase)
 
     # ── Engine callbacks ──────────────────────────────────────────────────
 
     def _create_ai_player(self, color: Color) -> AIPlayer:
-        return self._engine_session.create_ai_player(color)
+        return lifecycle_part.create_ai_player(self, color)
 
     def _cancel_ai_search(self) -> None:
-        self._engine_session.cancel_ai_search()
+        lifecycle_part.cancel_ai_search(self)
 
     # ── Helpers ──────────────────────────────────────────────────────────
 
     def _sync_board_interactivity(self) -> None:
-        self._game_sync.sync_board_interactivity()
+        lifecycle_part.sync_board_interactivity(self)
 
     @staticmethod
     def _termination_from_end_reason(reason: GameEndReason) -> str:
-        mapping = {
-            GameEndReason.NONE: "unterminated",
-            GameEndReason.CHECKMATE: "checkmate",
-            GameEndReason.STALEMATE: "stalemate",
-            GameEndReason.RESIGN: "resignation",
-            GameEndReason.FLAG_FALL: "time forfeit",
-            GameEndReason.DRAW_AGREED: "draw agreed",
-            GameEndReason.DRAW_RULE: "draw rule",
-        }
-        return mapping.get(reason, "unterminated")
+        return pgn_part.termination_from_end_reason(reason)
 
     @staticmethod
     def _end_reason_from_termination(termination: str | None) -> GameEndReason:
-        if termination is None:
-            return GameEndReason.NONE
-
-        normalized = " ".join(
-            termination.strip().lower().replace("_", " ").replace("-", " ").split()
-        )
-        mapping = {
-            "checkmate": GameEndReason.CHECKMATE,
-            "mate": GameEndReason.CHECKMATE,
-            "stalemate": GameEndReason.STALEMATE,
-            "resign": GameEndReason.RESIGN,
-            "resigned": GameEndReason.RESIGN,
-            "resignation": GameEndReason.RESIGN,
-            "time forfeit": GameEndReason.FLAG_FALL,
-            "flag fall": GameEndReason.FLAG_FALL,
-            "time": GameEndReason.FLAG_FALL,
-            "draw agreed": GameEndReason.DRAW_AGREED,
-            "draw agreement": GameEndReason.DRAW_AGREED,
-            "agreement": GameEndReason.DRAW_AGREED,
-            "draw rule": GameEndReason.DRAW_RULE,
-            "threefold repetition": GameEndReason.DRAW_RULE,
-            "fivefold repetition": GameEndReason.DRAW_RULE,
-            "50 move rule": GameEndReason.DRAW_RULE,
-            "75 move rule": GameEndReason.DRAW_RULE,
-            "insufficient material": GameEndReason.DRAW_RULE,
-            "unterminated": GameEndReason.NONE,
-            "normal": GameEndReason.NONE,
-        }
-        return mapping.get(normalized, GameEndReason.NONE)
+        return pgn_part.end_reason_from_termination(termination)
 
     def _update_status(self) -> None:
-        self._game_sync.update_status()
+        lifecycle_part.update_status(self)
 
     def _resolve_resign_color(self) -> Color:
-        """
-        Resolve who is resigning from UI intent.
-
-        Human vs Human: current side to move resigns.
-        Human vs AI: human side resigns.
-        """
-        white_player = self._controller.player(Color.WHITE)
-        black_player = self._controller.player(Color.BLACK)
-        white_is_human = bool(white_player and white_player.is_human)
-        black_is_human = bool(black_player and black_player.is_human)
-
-        if white_is_human and black_is_human:
-            return self._controller.state.side_to_move
-        if white_is_human:
-            return Color.WHITE
-        if black_is_human:
-            return Color.BLACK
-        return self._controller.state.side_to_move
+        return game_part.resolve_resign_color(self)
 
     def _is_human_vs_ai(self) -> bool:
-        white_player = self._controller.player(Color.WHITE)
-        black_player = self._controller.player(Color.BLACK)
-        return bool(
-            white_player is not None
-            and black_player is not None
-            and white_player.is_human != black_player.is_human
-        )
+        return game_part.is_human_vs_ai(self)
 
     def _is_human_vs_human(self) -> bool:
-        white_player = self._controller.player(Color.WHITE)
-        black_player = self._controller.player(Color.BLACK)
-        return bool(
-            white_player is not None
-            and black_player is not None
-            and white_player.is_human
-            and black_player.is_human
-        )
+        return game_part.is_human_vs_human(self)

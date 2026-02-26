@@ -66,7 +66,7 @@ QListWidget {
     background: #1e1e1e;
     color: #d4d4d4;
     border: 1px solid #3c3c3c;
-    font-family: "JetBrains Mono", "Consolas", monospace;
+    font-family: "Adwaita Sans", "Consolas", monospace;
     font-size: 13px;
 }
 
