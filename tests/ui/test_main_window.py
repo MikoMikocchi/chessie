@@ -6,7 +6,14 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import cast
 
-from chessie.core.enums import Color
+from PyQt6.QtWidgets import QMessageBox
+
+from chessie.core.enums import Color, MoveFlag
+from chessie.core.move import Move
+from chessie.core.types import E2, E4, E5, E7
+from chessie.game.controller import GameController
+from chessie.game.interfaces import TimeControl
+from chessie.game.player import HumanPlayer
 from chessie.ui.main_window import MainWindow
 
 
@@ -34,6 +41,7 @@ class _StubController:
         }
         self.offered: list[Color] = []
         self.accepted: list[Color] = []
+        self.declined = 0
 
     def offer_draw(self, color: Color) -> None:
         self.offered.append(color)
@@ -41,35 +49,63 @@ class _StubController:
     def accept_draw(self, color: Color) -> None:
         self.accepted.append(color)
 
+    def decline_draw(self) -> None:
+        self.declined += 1
+
     def player(self, color: Color) -> _StubPlayer | None:
         return self._players.get(color)
 
 
 def _make_window(controller: _StubController) -> MainWindow:
-    return cast(MainWindow, SimpleNamespace(_controller=controller))
+    return cast(
+        MainWindow,
+        SimpleNamespace(
+            _controller=controller,
+            _status_label=SimpleNamespace(setText=lambda _text: None),
+            _is_human_vs_human=lambda: (
+                (white := controller.player(Color.WHITE)) is not None
+                and (black := controller.player(Color.BLACK)) is not None
+                and white.is_human
+                and black.is_human
+            ),
+        ),
+    )
 
 
 class TestMainWindowDraw:
-    def test_human_vs_human_auto_accepts_draw(self) -> None:
+    def test_human_vs_human_accepts_draw_on_confirm(self, monkeypatch) -> None:
+        monkeypatch.setattr(
+            QMessageBox,
+            "question",
+            lambda *args, **kwargs: QMessageBox.StandardButton.Yes,
+        )
         ctrl = _StubController()
         MainWindow._on_draw(_make_window(ctrl))
 
         assert ctrl.offered == [Color.WHITE]
         assert ctrl.accepted == [Color.BLACK]
+        assert ctrl.declined == 0
 
-    def test_human_vs_human_auto_accepts_for_black_turn(self) -> None:
+    def test_human_vs_human_declines_draw_on_confirm(self, monkeypatch) -> None:
+        monkeypatch.setattr(
+            QMessageBox,
+            "question",
+            lambda *args, **kwargs: QMessageBox.StandardButton.No,
+        )
         ctrl = _StubController(side_to_move=Color.BLACK)
         MainWindow._on_draw(_make_window(ctrl))
 
         assert ctrl.offered == [Color.BLACK]
-        assert ctrl.accepted == [Color.WHITE]
+        assert ctrl.accepted == []
+        assert ctrl.declined == 1
 
-    def test_not_auto_accepted_when_not_human_vs_human(self) -> None:
+    def test_draw_declined_when_not_human_vs_human(self) -> None:
         ctrl = _StubController(black_human=False)
         MainWindow._on_draw(_make_window(ctrl))
 
         assert ctrl.offered == [Color.WHITE]
         assert ctrl.accepted == []
+        assert ctrl.declined == 1
 
     def test_draw_click_ignored_when_game_is_over(self) -> None:
         ctrl = _StubController(is_game_over=True)
@@ -77,6 +113,93 @@ class TestMainWindowDraw:
 
         assert ctrl.offered == []
         assert ctrl.accepted == []
+        assert ctrl.declined == 0
+
+
+def _make_pgn_window(controller: GameController) -> tuple[MainWindow, list[str]]:
+    status_updates: list[str] = []
+    window = cast(
+        MainWindow,
+        SimpleNamespace(
+            _controller=controller,
+            _is_loading_pgn=False,
+            _status_label=SimpleNamespace(setText=lambda text: status_updates.append(text)),
+            _cancel_ai_search=lambda: None,
+            _connect_game_events=lambda: None,
+            _after_new_game=lambda: None,
+            _sync_board_interactivity=lambda: None,
+            _update_status=lambda: None,
+            _on_game_over=lambda _result: None,
+        ),
+    )
+    return window, status_updates
+
+
+class TestMainWindowPgn:
+    def test_save_pgn(self, monkeypatch, tmp_path) -> None:
+        ctrl = GameController()
+        ctrl.new_game(
+            HumanPlayer(Color.WHITE, "White"),
+            HumanPlayer(Color.BLACK, "Black"),
+            TimeControl.unlimited(),
+        )
+        ctrl.submit_move(Move(E2, E4, MoveFlag.DOUBLE_PAWN))
+        ctrl.submit_move(Move(E7, E5, MoveFlag.DOUBLE_PAWN))
+
+        window, status_updates = _make_pgn_window(ctrl)
+        save_path = tmp_path / "saved-game.pgn"
+
+        monkeypatch.setattr(
+            "chessie.ui.main_window.QFileDialog.getSaveFileName",
+            lambda *args, **kwargs: (str(save_path), "PGN Files (*.pgn)"),
+        )
+        monkeypatch.setattr(
+            "chessie.ui.main_window.QMessageBox.warning",
+            lambda *args, **kwargs: None,
+        )
+
+        MainWindow._on_save_pgn(window)
+
+        text = save_path.read_text(encoding="utf-8")
+        assert '[White "White"]' in text
+        assert '[Black "Black"]' in text
+        assert "1. e4 e5 *" in text
+        assert status_updates[-1] == f"Saved PGN: {save_path.name}"
+
+    def test_open_pgn(self, monkeypatch, tmp_path) -> None:
+        pgn_path = tmp_path / "loaded-game.pgn"
+        pgn_path.write_text(
+            '\n'.join(
+                [
+                    '[Event "Casual"]',
+                    '[White "Alice"]',
+                    '[Black "Bob"]',
+                    '[Result "*"]',
+                    "",
+                    "1. e4 e5 *",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        ctrl = GameController()
+        window, status_updates = _make_pgn_window(ctrl)
+
+        monkeypatch.setattr(
+            "chessie.ui.main_window.QFileDialog.getOpenFileName",
+            lambda *args, **kwargs: (str(pgn_path), "PGN Files (*.pgn)"),
+        )
+        monkeypatch.setattr(
+            "chessie.ui.main_window.QMessageBox.warning",
+            lambda *args, **kwargs: None,
+        )
+
+        MainWindow._on_open_pgn(window)
+
+        assert ctrl.state.ply_count == 2
+        assert [rec.san for rec in ctrl.state.move_history] == ["e4", "e5"]
+        assert status_updates[-1] == f"Loaded PGN: {pgn_path.name}"
 
 
 @dataclass

@@ -9,7 +9,7 @@ from chessie.core.enums import Color, GameResult, MoveFlag
 from chessie.core.move_generator import MoveGenerator
 from chessie.core.notation import STARTING_FEN, position_from_fen, position_to_fen
 from chessie.core.rules import Rules
-from chessie.game.interfaces import DrawOffer, GamePhase
+from chessie.game.interfaces import DrawOffer, GameEndReason, GamePhase
 
 if TYPE_CHECKING:
     from chessie.core.move import Move
@@ -40,6 +40,7 @@ class GameState:
     )
     phase: GamePhase = field(default=GamePhase.NOT_STARTED, init=False)
     result: GameResult = field(default=GameResult.IN_PROGRESS, init=False)
+    end_reason: GameEndReason = field(default=GameEndReason.NONE, init=False)
     draw_offer: DrawOffer = field(default=DrawOffer.NONE, init=False)
     draw_offer_by: Color | None = field(default=None, init=False)
     move_history: list[MoveRecord] = field(default_factory=list, init=False)
@@ -53,6 +54,7 @@ class GameState:
         self.position = position_from_fen(self.start_fen)
         self.phase = GamePhase.AWAITING_MOVE
         self.result = GameResult.IN_PROGRESS
+        self.end_reason = GameEndReason.NONE
         self.draw_offer = DrawOffer.NONE
         self.draw_offer_by = None
         self.move_history.clear()
@@ -103,6 +105,7 @@ class GameState:
         # Reset result if we un-did a game-ending move
         if self.result != GameResult.IN_PROGRESS:
             self.result = GameResult.IN_PROGRESS
+            self.end_reason = GameEndReason.NONE
             self.phase = GamePhase.AWAITING_MOVE
 
         return record.move
@@ -113,10 +116,12 @@ class GameState:
         self.result = (
             GameResult.BLACK_WINS if color == Color.WHITE else GameResult.WHITE_WINS
         )
+        self.end_reason = GameEndReason.RESIGN
         self.phase = GamePhase.GAME_OVER
 
-    def set_draw(self) -> None:
+    def set_draw(self, reason: GameEndReason = GameEndReason.DRAW_AGREED) -> None:
         self.result = GameResult.DRAW
+        self.end_reason = reason
         self.phase = GamePhase.GAME_OVER
 
     def flag_fall(self, color: Color) -> None:
@@ -124,6 +129,7 @@ class GameState:
         self.result = (
             GameResult.BLACK_WINS if color == Color.WHITE else GameResult.WHITE_WINS
         )
+        self.end_reason = GameEndReason.FLAG_FALL
         self.phase = GamePhase.GAME_OVER
 
     # ── Query helpers ────────────────────────────────────────────────────
@@ -154,7 +160,48 @@ class GameState:
     # ── Internal ─────────────────────────────────────────────────────────
 
     def _check_game_over(self) -> None:
-        result = Rules.game_result(self.position)
-        if result != GameResult.IN_PROGRESS:
-            self.result = result
+        gen = MoveGenerator(self.position)
+        legal_moves = gen.generate_legal_moves()
+
+        if not legal_moves:
+            if gen.is_in_check(self.position.side_to_move):
+                self.result = (
+                    GameResult.BLACK_WINS
+                    if self.position.side_to_move == Color.WHITE
+                    else GameResult.WHITE_WINS
+                )
+                self.end_reason = GameEndReason.CHECKMATE
+            else:
+                self.result = GameResult.DRAW
+                self.end_reason = GameEndReason.STALEMATE
+            self.phase = GamePhase.GAME_OVER
+            return
+
+        if Rules.is_insufficient_material(self.position):
+            self.result = GameResult.DRAW
+            self.end_reason = GameEndReason.DRAW_RULE
+            self.phase = GamePhase.GAME_OVER
+            return
+
+        if Rules.is_seventy_five_move_rule(self.position):
+            self.result = GameResult.DRAW
+            self.end_reason = GameEndReason.DRAW_RULE
+            self.phase = GamePhase.GAME_OVER
+            return
+
+        if Rules.is_fivefold_repetition(self.position):
+            self.result = GameResult.DRAW
+            self.end_reason = GameEndReason.DRAW_RULE
+            self.phase = GamePhase.GAME_OVER
+            return
+
+        if Rules.is_fifty_move_rule(self.position):
+            self.result = GameResult.DRAW
+            self.end_reason = GameEndReason.DRAW_RULE
+            self.phase = GamePhase.GAME_OVER
+            return
+
+        if Rules.is_threefold_repetition(self.position):
+            self.result = GameResult.DRAW
+            self.end_reason = GameEndReason.DRAW_RULE
             self.phase = GamePhase.GAME_OVER

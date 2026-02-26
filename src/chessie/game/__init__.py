@@ -16,6 +16,7 @@ from chessie.game.clock import Clock
 from chessie.game.controller import GameController, GameEvents
 from chessie.game.interfaces import (
     DrawOffer,
+    GameEndReason,
     GamePhase,
     IClock,
     IGameController,
@@ -28,6 +29,7 @@ from chessie.game.state import GameState, MoveRecord
 __all__ = [
     # Interfaces
     "DrawOffer",
+    "GameEndReason",
     "GamePhase",
     "IClock",
     "IGameController",

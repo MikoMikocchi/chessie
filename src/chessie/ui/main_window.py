@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING, TypeVar
 
 from PyQt6.QtCore import QThread, pyqtSignal
 from PyQt6.QtGui import QAction, QCloseEvent
 from PyQt6.QtWidgets import (
+    QFileDialog,
     QHBoxLayout,
     QLabel,
     QMainWindow,
@@ -19,10 +22,18 @@ from PyQt6.QtWidgets import (
 
 from chessie.core.enums import Color, GameResult
 from chessie.core.move import Move
-from chessie.core.notation import position_to_fen
+from chessie.core.notation import (
+    STARTING_FEN,
+    build_pgn,
+    game_result_from_pgn,
+    parse_pgn,
+    parse_san,
+    pgn_result_token,
+    position_to_fen,
+)
 from chessie.engine import EngineWorker
 from chessie.game.controller import GameController
-from chessie.game.interfaces import GamePhase, IPlayer, TimeControl
+from chessie.game.interfaces import GameEndReason, GamePhase, IPlayer, TimeControl
 from chessie.game.player import AIPlayer, HumanPlayer
 from chessie.game.state import GameState
 from chessie.ui.board.board_view import BoardView
@@ -55,6 +66,7 @@ class MainWindow(QMainWindow):
         self._engine_request_id = 0
         self._pending_engine_request: int | None = None
         self._pending_engine_fen: str | None = None
+        self._is_loading_pgn = False
 
         self._setup_ui()
         self._setup_menu()
@@ -118,6 +130,16 @@ class MainWindow(QMainWindow):
         new_act.setShortcut("Ctrl+N")
         new_act.triggered.connect(self._on_new_game_dialog)
         game_menu.addAction(new_act)
+
+        open_pgn_act = QAction("&Open PGN...", self)
+        open_pgn_act.setShortcut("Ctrl+O")
+        open_pgn_act.triggered.connect(self._on_open_pgn)
+        game_menu.addAction(open_pgn_act)
+
+        save_pgn_act = QAction("&Save PGN...", self)
+        save_pgn_act.setShortcut("Ctrl+S")
+        save_pgn_act.triggered.connect(self._on_save_pgn)
+        game_menu.addAction(save_pgn_act)
 
         game_menu.addSeparator()
 
@@ -214,6 +236,113 @@ class MainWindow(QMainWindow):
         self._controller.new_game(white, black, settings.time_control)
         self._after_new_game()
 
+    def _on_open_pgn(self) -> None:
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open PGN",
+            "",
+            "PGN Files (*.pgn);;All Files (*)",
+        )
+        if not file_path:
+            return
+
+        try:
+            pgn_text = Path(file_path).read_text(encoding="utf-8")
+            headers, sans, result_token = parse_pgn(pgn_text)
+
+            start_fen = STARTING_FEN
+            if headers.get("SetUp") == "1" and "FEN" in headers:
+                start_fen = headers["FEN"]
+
+            self._cancel_ai_search()
+            white = HumanPlayer(Color.WHITE, headers.get("White", "White"))
+            black = HumanPlayer(Color.BLACK, headers.get("Black", "Black"))
+
+            self._connect_game_events()
+            self._controller.new_game(
+                white=white,
+                black=black,
+                time_control=TimeControl.unlimited(),
+                fen=start_fen,
+            )
+            self._after_new_game()
+
+            self._is_loading_pgn = True
+            try:
+                for san in sans:
+                    move = parse_san(self._controller.state.position, san)
+                    if not self._controller.submit_move(move):
+                        raise ValueError(f"Illegal move in PGN: {san}")
+
+                declared_result = game_result_from_pgn(result_token)
+                if (
+                    declared_result != GameResult.IN_PROGRESS
+                    and not self._controller.state.is_game_over
+                ):
+                    state = self._controller.state
+                    state.result = declared_result
+                    state.phase = GamePhase.GAME_OVER
+                    state.end_reason = (
+                        GameEndReason.DRAW_AGREED
+                        if declared_result == GameResult.DRAW
+                        else GameEndReason.RESIGN
+                    )
+                    self._on_game_over(declared_result)
+            finally:
+                self._is_loading_pgn = False
+
+            self._sync_board_interactivity()
+            self._update_status()
+            self._status_label.setText(f"Loaded PGN: {Path(file_path).name}")
+        except Exception as exc:
+            self._is_loading_pgn = False
+            QMessageBox.warning(self, "Open PGN", f"Failed to load PGN:\n{exc}")
+
+    def _on_save_pgn(self) -> None:
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save PGN",
+            "game.pgn",
+            "PGN Files (*.pgn);;All Files (*)",
+        )
+        if not file_path:
+            return
+
+        try:
+            save_path = Path(file_path)
+            if save_path.suffix.lower() != ".pgn":
+                save_path = save_path.with_suffix(".pgn")
+
+            state = self._controller.state
+            white_player = self._controller.player(Color.WHITE)
+            black_player = self._controller.player(Color.BLACK)
+            result_token = pgn_result_token(state.result)
+
+            headers: dict[str, str] = {
+                "Event": "Casual Game",
+                "Site": "Chessie",
+                "Date": datetime.now().strftime("%Y.%m.%d"),
+                "Round": "-",
+                "White": white_player.name if white_player is not None else "White",
+                "Black": black_player.name if black_player is not None else "Black",
+                "Result": result_token,
+            }
+            if state.start_fen != STARTING_FEN:
+                headers["SetUp"] = "1"
+                headers["FEN"] = state.start_fen
+            if state.end_reason != GameEndReason.NONE:
+                headers["Termination"] = state.end_reason.name.lower()
+
+            pgn_text = build_pgn(
+                headers=headers,
+                sans=[record.san for record in state.move_history],
+                result_token=result_token,
+            )
+            save_path.write_text(pgn_text, encoding="utf-8")
+            self._status_label.setText(f"Saved PGN: {save_path.name}")
+        except Exception as exc:
+            QMessageBox.warning(self, "Save PGN", f"Failed to save PGN:\n{exc}")
+
     def closeEvent(self, event: QCloseEvent | None) -> None:
         self._cancel_ai_search()
         self._disconnect_game_events()
@@ -273,17 +402,23 @@ class MainWindow(QMainWindow):
         offering_color = state.side_to_move
         self._controller.offer_draw(offering_color)
 
-        # In human-vs-human mode, draw is immediate (no second-side confirmation).
-        white_p = self._controller.player(Color.WHITE)
-        black_p = self._controller.player(Color.BLACK)
-        is_human_vs_human = (
-            white_p is not None
-            and black_p is not None
-            and white_p.is_human
-            and black_p.is_human
-        )
-        if is_human_vs_human:
-            self._controller.accept_draw(offering_color.opposite)
+        if self._is_human_vs_human():
+            side = "White" if offering_color == Color.WHITE else "Black"
+            reply = QMessageBox.question(
+                self,
+                "Draw Offer",
+                f"{side} offers a draw. Accept?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                self._controller.accept_draw(offering_color.opposite)
+            else:
+                self._controller.decline_draw()
+            return
+
+        # MVP policy for AI: always decline human draw offers.
+        self._controller.decline_draw()
+        self._status_label.setText("Draw offer declined by Chessie AI.")
 
     def _on_undo(self) -> None:
         if not self._controller.undo_move():
@@ -339,16 +474,10 @@ class MainWindow(QMainWindow):
         self._clock_widget.stop()
         self._board_view.board_scene.set_interactive(False)
         self._control_panel.set_game_active(False)
-
-        msg_map = {
-            GameResult.WHITE_WINS: "White wins!",
-            GameResult.BLACK_WINS: "Black wins!",
-            GameResult.DRAW: "Draw!",
-        }
-        text = msg_map.get(result, str(result))
-        self._status_label.setText(f"Game over — {text}")
-
-        QMessageBox.information(self, "Game Over", text)
+        text = self._game_over_text(result)
+        self._status_label.setText(f"Game over - {text}")
+        if not self._is_loading_pgn:
+            QMessageBox.information(self, "Game Over", text)
 
     def _on_phase_changed(self, _phase: GamePhase) -> None:
         self._sync_board_interactivity()
@@ -444,13 +573,34 @@ class MainWindow(QMainWindow):
         interactive = current is not None and current.is_human
         self._board_view.board_scene.set_interactive(interactive)
 
+    def _game_over_text(self, result: GameResult) -> str:
+        reason = self._controller.state.end_reason
+
+        if result == GameResult.DRAW:
+            if reason == GameEndReason.STALEMATE:
+                return "Draw by stalemate."
+            if reason == GameEndReason.DRAW_AGREED:
+                return "Draw by agreement."
+            if reason == GameEndReason.DRAW_RULE:
+                return "Draw by rule."
+            return "Draw."
+
+        winner = "White" if result == GameResult.WHITE_WINS else "Black"
+        if reason == GameEndReason.CHECKMATE:
+            return f"{winner} wins by checkmate."
+        if reason == GameEndReason.RESIGN:
+            return f"{winner} wins by resignation."
+        if reason == GameEndReason.FLAG_FALL:
+            return f"{winner} wins on time."
+        return f"{winner} wins."
+
     def _update_status(self) -> None:
         state = self._controller.state
         if state.is_game_over:
             return
         side = "White" if state.side_to_move == Color.WHITE else "Black"
         phase = state.phase.name.replace("_", " ").capitalize()
-        self._status_label.setText(f"{side} · {phase} · Move {state.fullmove_display}")
+        self._status_label.setText(f"{side} | {phase} | Move {state.fullmove_display}")
 
     def _resolve_resign_color(self) -> Color:
         """
@@ -479,4 +629,14 @@ class MainWindow(QMainWindow):
             white_player is not None
             and black_player is not None
             and white_player.is_human != black_player.is_human
+        )
+
+    def _is_human_vs_human(self) -> bool:
+        white_player = self._controller.player(Color.WHITE)
+        black_player = self._controller.player(Color.BLACK)
+        return bool(
+            white_player is not None
+            and black_player is not None
+            and white_player.is_human
+            and black_player.is_human
         )

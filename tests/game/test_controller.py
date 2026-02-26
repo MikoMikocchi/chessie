@@ -8,7 +8,7 @@ from chessie.core.enums import Color, GameResult, MoveFlag
 from chessie.core.move import Move
 from chessie.core.types import D5, D7, E2, E4, parse_square
 from chessie.game.controller import GameController
-from chessie.game.interfaces import DrawOffer, GamePhase, TimeControl
+from chessie.game.interfaces import DrawOffer, GameEndReason, GamePhase, TimeControl
 from chessie.game.player import AIPlayer, HumanPlayer
 
 
@@ -97,6 +97,7 @@ class TestResignDraw:
         assert ctrl.state.draw_offer == DrawOffer.OFFERED
         ctrl.accept_draw(Color.BLACK)
         assert ctrl.state.result == GameResult.DRAW
+        assert ctrl.state.end_reason == GameEndReason.DRAW_AGREED
 
     def test_cannot_accept_own_draw_offer(self) -> None:
         ctrl = _make_hh_controller()

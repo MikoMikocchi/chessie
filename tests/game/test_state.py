@@ -4,7 +4,7 @@ from chessie.core.enums import Color, GameResult, MoveFlag
 from chessie.core.move import Move
 from chessie.core.notation import position_to_fen
 from chessie.core.types import D5, D7, E2, E4, parse_square
-from chessie.game.interfaces import GamePhase
+from chessie.game.interfaces import GameEndReason, GamePhase
 from chessie.game.state import GameState
 
 
@@ -19,6 +19,7 @@ class TestGameStateSetup:
         gs.setup()
         assert gs.phase == GamePhase.AWAITING_MOVE
         assert gs.result == GameResult.IN_PROGRESS
+        assert gs.end_reason == GameEndReason.NONE
         assert gs.side_to_move == Color.WHITE
         assert gs.ply_count == 0
 
@@ -87,6 +88,7 @@ class TestGameStateTermination:
         gs.setup()
         gs.resign(Color.WHITE)
         assert gs.result == GameResult.BLACK_WINS
+        assert gs.end_reason == GameEndReason.RESIGN
         assert gs.is_game_over
 
     def test_resign_black(self) -> None:
@@ -94,6 +96,7 @@ class TestGameStateTermination:
         gs.setup()
         gs.resign(Color.BLACK)
         assert gs.result == GameResult.WHITE_WINS
+        assert gs.end_reason == GameEndReason.RESIGN
         assert gs.is_game_over
 
     def test_set_draw(self) -> None:
@@ -101,6 +104,7 @@ class TestGameStateTermination:
         gs.setup()
         gs.set_draw()
         assert gs.result == GameResult.DRAW
+        assert gs.end_reason == GameEndReason.DRAW_AGREED
         assert gs.is_game_over
 
     def test_flag_fall(self) -> None:
@@ -108,6 +112,7 @@ class TestGameStateTermination:
         gs.setup()
         gs.flag_fall(Color.WHITE)
         assert gs.result == GameResult.BLACK_WINS
+        assert gs.end_reason == GameEndReason.FLAG_FALL
         assert gs.is_game_over
 
     def test_fools_mate_detected(self) -> None:
@@ -123,7 +128,22 @@ class TestGameStateTermination:
         )
         gs.apply_move(Move(parse_square("d8"), parse_square("h4")))
         assert gs.result == GameResult.BLACK_WINS
+        assert gs.end_reason == GameEndReason.CHECKMATE
         assert gs.is_game_over
+
+    def test_stalemate_reason(self) -> None:
+        gs = GameState()
+        gs.setup("7k/5K2/6Q1/8/8/8/8/8 b - - 0 1")
+        gs._check_game_over()
+        assert gs.result == GameResult.DRAW
+        assert gs.end_reason == GameEndReason.STALEMATE
+
+    def test_draw_rule_reason(self) -> None:
+        gs = GameState()
+        gs.setup("8/8/8/8/8/8/4K2k/8 w - - 0 1")
+        gs._check_game_over()
+        assert gs.result == GameResult.DRAW
+        assert gs.end_reason == GameEndReason.DRAW_RULE
 
     def test_undo_reverses_game_over(self) -> None:
         gs = GameState()

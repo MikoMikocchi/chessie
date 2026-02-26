@@ -2,12 +2,16 @@
 
 import pytest
 
-from chessie.core.enums import CastlingRights, Color, MoveFlag, PieceType
+from chessie.core.enums import CastlingRights, Color, GameResult, MoveFlag, PieceType
 from chessie.core.move import Move
 from chessie.core.notation import (
     STARTING_FEN,
+    build_pgn,
+    game_result_from_pgn,
     move_to_san,
+    parse_pgn,
     parse_san,
+    pgn_result_token,
     position_from_fen,
     position_to_fen,
 )
@@ -140,3 +144,44 @@ class TestSAN:
             san = move_to_san(pos, move)
             parsed = parse_san(pos, san)
             assert parsed == move, f"Roundtrip failed for {san}: {move} ≠ {parsed}"
+
+
+class TestPGN:
+    def test_build_and_parse_roundtrip(self) -> None:
+        headers = {
+            "Event": "Test",
+            "Site": "Local",
+            "Date": "2026.02.26",
+            "Round": "-",
+            "White": "Alice",
+            "Black": "Bob",
+            "Result": "1-0",
+        }
+        pgn_text = build_pgn(headers, ["e4", "e5", "Nf3"], "1-0")
+        parsed_headers, sans, result_token = parse_pgn(pgn_text)
+
+        assert parsed_headers == headers
+        assert sans == ["e4", "e5", "Nf3"]
+        assert result_token == "1-0"
+
+    def test_parse_pgn_ignores_comments_and_variations(self) -> None:
+        pgn_text = """
+[Event "Annotated"]
+[Result "1/2-1/2"]
+
+1. e4 {central push} e5 (1... c5) 2. Nf3 Nc6 1/2-1/2
+"""
+        _headers, sans, result_token = parse_pgn(pgn_text)
+        assert sans == ["e4", "e5", "Nf3", "Nc6"]
+        assert result_token == "1/2-1/2"
+
+    def test_result_token_mapping(self) -> None:
+        assert pgn_result_token(GameResult.WHITE_WINS) == "1-0"
+        assert pgn_result_token(GameResult.BLACK_WINS) == "0-1"
+        assert pgn_result_token(GameResult.DRAW) == "1/2-1/2"
+        assert pgn_result_token(GameResult.IN_PROGRESS) == "*"
+
+        assert game_result_from_pgn("1-0") == GameResult.WHITE_WINS
+        assert game_result_from_pgn("0-1") == GameResult.BLACK_WINS
+        assert game_result_from_pgn("1/2-1/2") == GameResult.DRAW
+        assert game_result_from_pgn("*") == GameResult.IN_PROGRESS

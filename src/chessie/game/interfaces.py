@@ -38,6 +38,18 @@ class DrawOffer(IntEnum):
     DECLINED = auto()
 
 
+class GameEndReason(IntEnum):
+    """How the game reached a terminal state."""
+
+    NONE = 0
+    CHECKMATE = auto()
+    STALEMATE = auto()
+    RESIGN = auto()
+    FLAG_FALL = auto()
+    DRAW_AGREED = auto()
+    DRAW_RULE = auto()
+
+
 # ── Time control presets ─────────────────────────────────────────────────────
 
 

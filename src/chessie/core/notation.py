@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import re
+
 from chessie.core.board import Board
-from chessie.core.enums import CastlingRights, Color, MoveFlag, PieceType
+from chessie.core.enums import CastlingRights, Color, GameResult, MoveFlag, PieceType
 from chessie.core.move import Move
 from chessie.core.move_generator import MoveGenerator
 from chessie.core.piece import Piece
@@ -307,3 +309,108 @@ def parse_san(position: Position, san: str) -> Move:
     if not candidates:
         raise ValueError(f"Illegal move: {san}")
     raise ValueError(f"Ambiguous move: {san} → {candidates}")
+
+
+_PGN_HEADER_RE = re.compile(r'^\[(\w+)\s+"((?:[^"\\]|\\.)*)"\]\s*$')
+_PGN_RESULT_TOKENS = {"1-0", "0-1", "1/2-1/2", "*"}
+_MOVE_NUMBER_RE = re.compile(r"^\d+\.(?:\.\.)?$")
+
+
+def pgn_result_token(result: GameResult) -> str:
+    """Convert :class:`GameResult` to a PGN result token."""
+    if result == GameResult.WHITE_WINS:
+        return "1-0"
+    if result == GameResult.BLACK_WINS:
+        return "0-1"
+    if result == GameResult.DRAW:
+        return "1/2-1/2"
+    return "*"
+
+
+def game_result_from_pgn(token: str) -> GameResult:
+    """Convert PGN result token to :class:`GameResult`."""
+    if token == "1-0":
+        return GameResult.WHITE_WINS
+    if token == "0-1":
+        return GameResult.BLACK_WINS
+    if token == "1/2-1/2":
+        return GameResult.DRAW
+    return GameResult.IN_PROGRESS
+
+
+def pgn_movetext_from_sans(sans: list[str], result_token: str) -> str:
+    """Build PGN movetext from SAN moves and a result token."""
+    parts: list[str] = []
+    for ply, san in enumerate(sans):
+        if ply % 2 == 0:
+            parts.append(f"{(ply // 2) + 1}.")
+        parts.append(san)
+    parts.append(result_token)
+    return " ".join(parts)
+
+
+def build_pgn(headers: dict[str, str], sans: list[str], result_token: str) -> str:
+    """Build a single-game PGN document."""
+    lines: list[str] = []
+    for key, value in headers.items():
+        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+        lines.append(f'[{key} "{escaped}"]')
+    lines.append("")
+    lines.append(pgn_movetext_from_sans(sans, result_token))
+    lines.append("")
+    return "\n".join(lines)
+
+
+def parse_pgn(pgn_text: str) -> tuple[dict[str, str], list[str], str]:
+    """Parse a single PGN game into headers, SAN list, and result token.
+
+    This parser intentionally supports only the mainline (no variations).
+    Comments are ignored.
+    """
+    headers: dict[str, str] = {}
+    move_lines: list[str] = []
+    in_headers = True
+
+    for raw_line in pgn_text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            if in_headers and not headers:
+                continue
+            in_headers = False
+            continue
+
+        if in_headers and line.startswith("["):
+            match = _PGN_HEADER_RE.match(line)
+            if match is None:
+                raise ValueError(f"Invalid PGN header line: {line}")
+            key, raw_value = match.groups()
+            value = raw_value.replace('\\"', '"').replace("\\\\", "\\")
+            headers[key] = value
+            continue
+
+        in_headers = False
+        if line.startswith("%"):
+            continue
+        move_lines.append(line)
+
+    movetext = " ".join(move_lines)
+    movetext = re.sub(r"\{[^}]*\}", " ", movetext)
+    movetext = re.sub(r";[^\n\r]*", " ", movetext)
+    previous = None
+    while previous != movetext:
+        previous = movetext
+        movetext = re.sub(r"\([^()]*\)", " ", movetext)
+
+    sans: list[str] = []
+    result_token = "*"
+    for token in movetext.split():
+        if token in _PGN_RESULT_TOKENS:
+            result_token = token
+            continue
+        if _MOVE_NUMBER_RE.match(token):
+            continue
+        if token.startswith("$"):
+            continue
+        sans.append(token)
+
+    return headers, sans, result_token

@@ -15,6 +15,7 @@ from chessie.core.move_generator import MoveGenerator
 from chessie.game.clock import Clock, ClockSnapshot
 from chessie.game.interfaces import (
     DrawOffer,
+    GameEndReason,
     GamePhase,
     IGameController,
     IPlayer,
@@ -176,7 +177,7 @@ class GameController(IGameController):
             self._clock.stop()
         self._state.draw_offer = DrawOffer.ACCEPTED
         self._state.draw_offer_by = None
-        self._state.set_draw()
+        self._state.set_draw(GameEndReason.DRAW_AGREED)
         self._emit_game_over(GameResult.DRAW)
 
     def decline_draw(self) -> None:
