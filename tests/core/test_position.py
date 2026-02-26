@@ -1,5 +1,7 @@
 """Tests for Position make/unmake."""
 
+import pytest
+
 from chessie.core.enums import CastlingRights, Color, MoveFlag, PieceType
 from chessie.core.move import Move
 from chessie.core.move_generator import MoveGenerator
@@ -21,6 +23,12 @@ class TestMakeUnmake:
         move = Move(E2, E4, MoveFlag.DOUBLE_PAWN)
         pos.make_move(move)
         assert pos.side_to_move == Color.BLACK
+
+    def test_make_move_raises_when_from_square_is_empty(self) -> None:
+        pos = position_from_fen(STARTING_FEN)
+        move = Move(parse_square("e3"), E4)
+        with pytest.raises(ValueError, match=r"No piece on \d+"):
+            pos.make_move(move)
 
     def test_unmake_restores_side(self) -> None:
         pos = position_from_fen(STARTING_FEN)

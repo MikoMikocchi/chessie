@@ -88,7 +88,8 @@ class Position:
         )
 
         piece = self.board[move.from_sq]
-        assert piece is not None, f"No piece on {move.from_sq}"
+        if piece is None:
+            raise ValueError(f"No piece on {move.from_sq}")
 
         # Lift piece from origin
         self.board[move.from_sq] = None
