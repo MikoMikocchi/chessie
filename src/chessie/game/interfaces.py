@@ -189,7 +189,7 @@ class IGameController(ABC):
         """Player offers a draw."""
 
     @abstractmethod
-    def accept_draw(self) -> None:
+    def accept_draw(self, color: Color) -> None:
         """Opponent accepts the draw offer."""
 
     @abstractmethod

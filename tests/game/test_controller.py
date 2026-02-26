@@ -95,8 +95,15 @@ class TestResignDraw:
         ctrl = _make_hh_controller()
         ctrl.offer_draw(Color.WHITE)
         assert ctrl.state.draw_offer == DrawOffer.OFFERED
-        ctrl.accept_draw()
+        ctrl.accept_draw(Color.BLACK)
         assert ctrl.state.result == GameResult.DRAW
+
+    def test_cannot_accept_own_draw_offer(self) -> None:
+        ctrl = _make_hh_controller()
+        ctrl.offer_draw(Color.WHITE)
+        ctrl.accept_draw(Color.WHITE)
+        assert ctrl.state.result == GameResult.IN_PROGRESS
+        assert ctrl.state.draw_offer == DrawOffer.OFFERED
 
     def test_draw_offer_decline(self) -> None:
         ctrl = _make_hh_controller()

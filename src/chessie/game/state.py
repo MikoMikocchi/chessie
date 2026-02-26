@@ -41,6 +41,7 @@ class GameState:
     phase: GamePhase = field(default=GamePhase.NOT_STARTED, init=False)
     result: GameResult = field(default=GameResult.IN_PROGRESS, init=False)
     draw_offer: DrawOffer = field(default=DrawOffer.NONE, init=False)
+    draw_offer_by: Color | None = field(default=None, init=False)
     move_history: list[MoveRecord] = field(default_factory=list, init=False)
     start_fen: str = field(default=STARTING_FEN, init=False)
 
@@ -53,6 +54,7 @@ class GameState:
         self.phase = GamePhase.AWAITING_MOVE
         self.result = GameResult.IN_PROGRESS
         self.draw_offer = DrawOffer.NONE
+        self.draw_offer_by = None
         self.move_history.clear()
 
     # ── Move application ─────────────────────────────────────────────────
@@ -86,6 +88,7 @@ class GameState:
         # Check for game-ending conditions
         self._check_game_over()
         self.draw_offer = DrawOffer.NONE  # any move cancels a pending offer
+        self.draw_offer_by = None
 
         return record
 

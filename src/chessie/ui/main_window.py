@@ -270,12 +270,13 @@ class MainWindow(QMainWindow):
         state = self._controller.state
         if state.is_game_over:
             return
-        self._controller.offer_draw(state.side_to_move)
+        offering_color = state.side_to_move
+        self._controller.offer_draw(offering_color)
         # For human–human, auto-accept
         white_p = self._controller.player(Color.WHITE)
         black_p = self._controller.player(Color.BLACK)
         if white_p and black_p and white_p.is_human and black_p.is_human:
-            self._controller.accept_draw()
+            self._controller.accept_draw(offering_color.opposite)
 
     def _on_undo(self) -> None:
         if self._controller.undo_move():

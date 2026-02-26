@@ -162,19 +162,26 @@ class GameController(IGameController):
     def offer_draw(self, color: Color) -> None:
         if self._state.is_game_over:
             return
+        if self._state.draw_offer == DrawOffer.OFFERED:
+            return
         self._state.draw_offer = DrawOffer.OFFERED
+        self._state.draw_offer_by = color
 
-    def accept_draw(self) -> None:
+    def accept_draw(self, color: Color) -> None:
         if self._state.draw_offer != DrawOffer.OFFERED:
+            return
+        if self._state.draw_offer_by in (None, color):
             return
         if self._clock:
             self._clock.stop()
         self._state.draw_offer = DrawOffer.ACCEPTED
+        self._state.draw_offer_by = None
         self._state.set_draw()
         self._emit_game_over(GameResult.DRAW)
 
     def decline_draw(self) -> None:
         self._state.draw_offer = DrawOffer.DECLINED
+        self._state.draw_offer_by = None
 
     def undo_move(self) -> bool:
         if self._state.is_game_over or not self._state.move_history:
