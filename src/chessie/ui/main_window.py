@@ -38,10 +38,13 @@ from chessie.game.player import AIPlayer, HumanPlayer
 from chessie.game.state import GameState
 from chessie.ui.board.board_view import BoardView
 from chessie.ui.dialogs.new_game_dialog import NewGameDialog
+from chessie.ui.dialogs.settings_dialog import AppSettings, SettingsDialog
 from chessie.ui.panels.clock_widget import ClockWidget
 from chessie.ui.panels.control_panel import ControlPanel
 from chessie.ui.panels.eval_bar import EvalBar
 from chessie.ui.panels.move_panel import MovePanel
+from chessie.ui.sounds import SoundPlayer
+from chessie.ui.styles.theme import BoardTheme
 
 if TYPE_CHECKING:
     from chessie.core.position import Position
@@ -61,6 +64,8 @@ class MainWindow(QMainWindow):
         self.resize(1100, 750)
 
         self._controller = GameController()
+        self._settings = AppSettings()
+        self._sound_player = SoundPlayer()
         self._engine_thread = QThread(self)
         self._engine_worker = EngineWorker(max_depth=4, time_limit_ms=900)
         self._engine_request_id = 0
@@ -155,6 +160,15 @@ class MainWindow(QMainWindow):
         quit_act.setShortcut("Ctrl+Q")
         quit_act.triggered.connect(self.close)
         game_menu.addAction(quit_act)
+
+        # Settings menu
+        settings_menu = menu_bar.addMenu("&Settings")
+        assert settings_menu is not None
+
+        settings_act = QAction("&Settings...", self)
+        settings_act.setShortcut("Ctrl+,")
+        settings_act.triggered.connect(self._on_settings)
+        settings_menu.addAction(settings_act)
 
     # ── Signal wiring ────────────────────────────────────────────────────
 
@@ -461,6 +475,31 @@ class MainWindow(QMainWindow):
         scene = self._board_view.board_scene
         scene.set_flipped(not scene.is_flipped())
 
+    def _on_settings(self) -> None:
+        dlg = SettingsDialog(self._settings, self)
+        if dlg.exec():
+            self._apply_settings()
+
+    def _apply_settings(self) -> None:
+        s = self._settings
+        scene = self._board_view.board_scene
+
+        # Board
+        theme_map = {
+            "Classic": BoardTheme.default(),
+            "Blue": BoardTheme.blue(),
+        }
+        scene.set_theme(theme_map.get(s.board_theme, BoardTheme.default()))
+        scene.set_show_coordinates(s.show_coordinates)
+        scene.set_show_legal_moves(s.show_legal_moves)
+
+        # Sound
+        self._sound_player.set_enabled(s.sound_enabled)
+        self._sound_player.set_volume(s.sound_volume)
+
+        # Engine (applied to subsequent searches; doesn't interrupt current)
+        self._engine_worker.set_limits(s.engine_depth, s.engine_time_ms)
+
     # ── Game event callbacks ─────────────────────────────────────────────
 
     def _on_game_move(self, move: Move, _san: str, state: GameState) -> None:
@@ -469,6 +508,9 @@ class MainWindow(QMainWindow):
             self._pgn_move_comments.append(None)
         elif len(self._pgn_move_comments) > len(state.move_history):
             self._pgn_move_comments = self._pgn_move_comments[: len(state.move_history)]
+
+        if state.move_history and not self._is_loading_pgn:
+            self._sound_player.play_move_sound(state.move_history[-1], state)
 
         self._board_view.board_scene.set_position(state.position)
         self._board_view.board_scene.highlight_last_move(move)

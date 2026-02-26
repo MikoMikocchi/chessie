@@ -46,6 +46,8 @@ class BoardScene(QGraphicsScene):
         self._legal_moves: list[Move] = []
         self._dragging_item: PieceItem | None = None
         self._interactive = True
+        self._show_coordinates = True
+        self._show_legal_moves = True
 
         # Visual layers
         self._square_items: dict[Square, QGraphicsRectItem] = {}
@@ -85,6 +87,18 @@ class BoardScene(QGraphicsScene):
         self._draw_board()
         if self._position:
             self._sync_pieces()
+
+    def set_show_coordinates(self, visible: bool) -> None:
+        """Show or hide rank/file coordinate labels."""
+        self._show_coordinates = visible
+        for item in self._coord_items:
+            item.setVisible(visible)
+
+    def set_show_legal_moves(self, visible: bool) -> None:
+        """Show or hide legal-move dot highlights."""
+        self._show_legal_moves = visible
+        if not visible:
+            self._clear_items(self._legal_dot_items)
 
     def highlight_last_move(self, move: Move | None) -> None:
         """Highlight origin/destination of the last played move."""
@@ -150,6 +164,7 @@ class BoardScene(QGraphicsScene):
                 )
                 txt.setPos(vf * t + 2, vr * t + 1)
                 txt.setZValue(0.3)
+                txt.setVisible(self._show_coordinates)
                 self.addItem(txt)
                 self._coord_items.append(txt)
 
@@ -165,6 +180,7 @@ class BoardScene(QGraphicsScene):
                 )
                 txt.setPos(vf * t + t - 12, vr * t + t - 16)
                 txt.setZValue(0.3)
+                txt.setVisible(self._show_coordinates)
                 self.addItem(txt)
                 self._coord_items.append(txt)
 
@@ -267,10 +283,11 @@ class BoardScene(QGraphicsScene):
         if self._position is not None:
             gen = MoveGenerator(self._position)
             self._legal_moves = gen.generate_legal_moves()
-            for m in self._legal_moves:
-                if m.from_sq == sq:
-                    dot = self._make_highlight(m.to_sq, self._theme.highlight_to)
-                    self._legal_dot_items.append(dot)
+            if self._show_legal_moves:
+                for m in self._legal_moves:
+                    if m.from_sq == sq:
+                        dot = self._make_highlight(m.to_sq, self._theme.highlight_to)
+                        self._legal_dot_items.append(dot)
 
     def _clear_selection(self) -> None:
         self._selected_sq = None

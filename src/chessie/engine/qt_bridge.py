@@ -67,3 +67,7 @@ class EngineWorker(QObject):
     def cancel(self) -> None:
         """Request cancellation of the current search."""
         self._cancel_event.set()
+
+    def set_limits(self, max_depth: int, time_limit_ms: int) -> None:
+        """Update search limits (takes effect on the next search)."""
+        self._limits = SearchLimits(max_depth=max_depth, time_limit_ms=time_limit_ms)
