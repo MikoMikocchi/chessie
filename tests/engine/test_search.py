@@ -1,8 +1,10 @@
 """Tests for the built-in Python chess engine."""
 
+from chessie.core.move import Move
 from chessie.core.move_generator import MoveGenerator
 from chessie.core.notation import STARTING_FEN, position_from_fen
 from chessie.core.rules import Rules
+from chessie.core.types import parse_square
 from chessie.engine import PythonSearchEngine, SearchLimits
 
 
@@ -59,4 +61,27 @@ class TestPythonSearchEngine:
 
         _ = engine.search(pos, SearchLimits(max_depth=3, time_limit_ms=None))
 
-        assert len(engine._tt) > 0  # type: ignore[attr-defined]
+        assert len(engine._tt) > 0
+
+    def test_killer_move_is_prioritized_among_quiet_moves(self) -> None:
+        pos = position_from_fen(STARTING_FEN)
+        engine = PythonSearchEngine()
+        killer = Move(parse_square("g1"), parse_square("f3"))
+        other = Move(parse_square("b1"), parse_square("c3"))
+
+        engine._record_killer(killer, ply=2)
+        ordered = engine._order_moves(pos, [other, killer], ply=2)
+
+        assert ordered[0] == killer
+
+    def test_history_heuristic_prioritizes_quiet_move(self) -> None:
+        pos = position_from_fen(STARTING_FEN)
+        engine = PythonSearchEngine()
+        favored = Move(parse_square("d2"), parse_square("d4"))
+        other = Move(parse_square("e2"), parse_square("e4"))
+
+        for _ in range(3):
+            engine._update_history(pos.side_to_move, favored, depth=6)
+        ordered = engine._order_moves(pos, [other, favored], ply=1)
+
+        assert ordered[0] == favored

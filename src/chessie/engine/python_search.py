@@ -18,6 +18,11 @@ _MATE_SCORE = 100_000
 _TT_EXACT = 0
 _TT_LOWER = 1
 _TT_UPPER = 2
+_MAX_KILLER_PLY = 128
+_KILLER_PRIMARY_BONUS = 9_000
+_KILLER_SECONDARY_BONUS = 8_000
+_HISTORY_BONUS_FACTOR = 32
+_HISTORY_MAX_SCORE = 8_000
 
 _PIECE_VALUES: dict[PieceType, int] = {
     PieceType.PAWN: 100,
@@ -51,6 +56,8 @@ class PythonSearchEngine(IEngine):
         "_last_yield_nodes",
         "_tt",
         "_tt_max_entries",
+        "_killer_moves",
+        "_history_scores",
     )
 
     def __init__(self) -> None:
@@ -60,6 +67,12 @@ class PythonSearchEngine(IEngine):
         self._cancel_check: CancelCheck = _never_cancelled
         self._tt: dict[object, _TTEntry] = {}
         self._tt_max_entries = 200_000
+        self._killer_moves: list[list[Move | None]] = [
+            [None, None] for _ in range(_MAX_KILLER_PLY)
+        ]
+        self._history_scores: list[list[list[int]]] = [
+            [[0 for _ in range(64)] for _ in range(64)] for _ in range(2)
+        ]
 
     def search(
         self,
@@ -73,6 +86,7 @@ class PythonSearchEngine(IEngine):
         self._nodes = 0
         self._last_yield_nodes = 0
         self._tt.clear()
+        self._reset_move_order_heuristics()
         self._cancel_check = is_cancelled or _never_cancelled
         self._deadline = None
         if limits.time_limit_ms is not None:
@@ -86,7 +100,7 @@ class PythonSearchEngine(IEngine):
                 return SearchResult(None, -_MATE_SCORE, 0, self._nodes)
             return SearchResult(None, 0, 0, self._nodes)
 
-        ordered_root = self._order_moves(position, root_moves)
+        ordered_root = self._order_moves(position, root_moves, ply=0)
         best_move = ordered_root[0]
         best_score = self._static_eval(position)
         completed_depth = 0
@@ -184,9 +198,10 @@ class PythonSearchEngine(IEngine):
                 return -_MATE_SCORE + ply
             return 0
 
-        ordered = self._order_moves(position, legal, tt_move=tt_move)
+        ordered = self._order_moves(position, legal, tt_move=tt_move, ply=ply)
         best_score = -_INF_SCORE
         best_move: Move | None = None
+        side_to_move = position.side_to_move
 
         for move in ordered:
             position.make_move(move)
@@ -199,6 +214,9 @@ class PythonSearchEngine(IEngine):
             if score > alpha:
                 alpha = score
             if alpha >= beta:
+                if self._is_quiet_move(position, move):
+                    self._record_killer(move, ply)
+                    self._update_history(side_to_move, move, depth)
                 break
             if self._should_stop():
                 break
@@ -251,7 +269,7 @@ class PythonSearchEngine(IEngine):
         if not candidates:
             return alpha
 
-        for move in self._order_moves(position, candidates):
+        for move in self._order_moves(position, candidates, ply=ply):
             position.make_move(move)
             score = -self._quiescence(position, -beta, -alpha, ply + 1)
             position.unmake_move(move)
@@ -287,10 +305,11 @@ class PythonSearchEngine(IEngine):
         position: Position,
         moves: list[Move],
         tt_move: Move | None = None,
+        ply: int = 0,
     ) -> list[Move]:
         return sorted(
             moves,
-            key=lambda move: self._move_order_score(position, move, tt_move),
+            key=lambda move: self._move_order_score(position, move, tt_move, ply),
             reverse=True,
         )
 
@@ -299,11 +318,13 @@ class PythonSearchEngine(IEngine):
         position: Position,
         move: Move,
         tt_move: Move | None = None,
+        ply: int = 0,
     ) -> int:
         moving_piece = position.board[move.from_sq]
         if moving_piece is None:
             return -_INF_SCORE
 
+        is_quiet = self._is_quiet_move(position, move)
         score = 0
         if tt_move is not None and move == tt_move:
             score += 100_000
@@ -320,7 +341,11 @@ class PythonSearchEngine(IEngine):
             score += 10_000
             score += 10 * _PIECE_VALUES[PieceType.PAWN]
             score -= _PIECE_VALUES[moving_piece.piece_type]
-        elif move.flag in (MoveFlag.CASTLE_KINGSIDE, MoveFlag.CASTLE_QUEENSIDE):
+        elif is_quiet:
+            score += self._killer_score(move, ply)
+            score += self._history_score(position.side_to_move, move)
+
+        if move.flag in (MoveFlag.CASTLE_KINGSIDE, MoveFlag.CASTLE_QUEENSIDE):
             score += 120
 
         score += self._piece_square_delta(
@@ -350,6 +375,43 @@ class PythonSearchEngine(IEngine):
         if move.flag in (MoveFlag.EN_PASSANT, MoveFlag.PROMOTION):
             return True
         return position.board[move.to_sq] is not None
+
+    def _is_quiet_move(self, position: Position, move: Move) -> bool:
+        if move.flag in (MoveFlag.PROMOTION, MoveFlag.EN_PASSANT):
+            return False
+        return position.board[move.to_sq] is None
+
+    def _reset_move_order_heuristics(self) -> None:
+        self._killer_moves = [[None, None] for _ in range(_MAX_KILLER_PLY)]
+        self._history_scores = [[[0 for _ in range(64)] for _ in range(64)] for _ in range(2)]
+
+    def _record_killer(self, move: Move, ply: int) -> None:
+        if ply < 0 or ply >= len(self._killer_moves):
+            return
+        killers = self._killer_moves[ply]
+        if killers[0] == move:
+            return
+        killers[1] = killers[0]
+        killers[0] = move
+
+    def _killer_score(self, move: Move, ply: int) -> int:
+        if ply < 0 or ply >= len(self._killer_moves):
+            return 0
+        killers = self._killer_moves[ply]
+        if killers[0] == move:
+            return _KILLER_PRIMARY_BONUS
+        if killers[1] == move:
+            return _KILLER_SECONDARY_BONUS
+        return 0
+
+    def _history_score(self, side: Color, move: Move) -> int:
+        return self._history_scores[int(side)][move.from_sq][move.to_sq]
+
+    def _update_history(self, side: Color, move: Move, depth: int) -> None:
+        bonus = max(depth, 1) * max(depth, 1) * _HISTORY_BONUS_FACTOR
+        side_scores = self._history_scores[int(side)]
+        current = side_scores[move.from_sq][move.to_sq]
+        side_scores[move.from_sq][move.to_sq] = min(_HISTORY_MAX_SCORE, current + bonus)
 
     def _static_eval(self, position: Position) -> int:
         white_score = 0
