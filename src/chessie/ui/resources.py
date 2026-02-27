@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from pathlib import Path
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
@@ -11,8 +10,9 @@ from PyQt6.QtSvg import QSvgRenderer
 
 from chessie.core.enums import Color, PieceType
 from chessie.core.piece import Piece
+from chessie.runtime_assets import asset_path
 
-_ASSETS_DIR = Path(__file__).resolve().parents[3] / "assets" / "pieces"
+_ASSETS_DIR = asset_path("pieces")
 
 _PIECE_NAMES: dict[PieceType, str] = {
     PieceType.PAWN: "pawn",

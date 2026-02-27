@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from PyQt6.QtCore import QUrl
 from PyQt6.QtMultimedia import QSoundEffect
 
 from chessie.game.interfaces import GameEndReason
 from chessie.game.state import GameState, MoveRecord
+from chessie.runtime_assets import asset_path
 
-_SOUNDS_DIR = Path(__file__).resolve().parents[3] / "assets" / "sounds"
+_SOUNDS_DIR = asset_path("sounds")
 
 
 class SoundPlayer:
