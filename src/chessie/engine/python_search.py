@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from time import perf_counter, sleep
 
 from chessie.core.enums import Color, MoveFlag, PieceType
@@ -14,6 +15,9 @@ from chessie.engine.search import CancelCheck, IEngine, SearchLimits, SearchResu
 
 _INF_SCORE = 1_000_000
 _MATE_SCORE = 100_000
+_TT_EXACT = 0
+_TT_LOWER = 1
+_TT_UPPER = 2
 
 _PIECE_VALUES: dict[PieceType, int] = {
     PieceType.PAWN: 100,
@@ -29,16 +33,33 @@ def _never_cancelled() -> bool:
     return False
 
 
+@dataclass(slots=True)
+class _TTEntry:
+    depth: int
+    score: int
+    bound: int
+    best_move: Move | None
+
+
 class PythonSearchEngine(IEngine):
     """Classical chess searcher with iterative deepening and quiescence."""
 
-    __slots__ = ("_cancel_check", "_deadline", "_nodes", "_last_yield_nodes")
+    __slots__ = (
+        "_cancel_check",
+        "_deadline",
+        "_nodes",
+        "_last_yield_nodes",
+        "_tt",
+        "_tt_max_entries",
+    )
 
     def __init__(self) -> None:
         self._nodes = 0
         self._last_yield_nodes = 0
         self._deadline: float | None = None
         self._cancel_check: CancelCheck = _never_cancelled
+        self._tt: dict[object, _TTEntry] = {}
+        self._tt_max_entries = 200_000
 
     def search(
         self,
@@ -51,6 +72,7 @@ class PythonSearchEngine(IEngine):
 
         self._nodes = 0
         self._last_yield_nodes = 0
+        self._tt.clear()
         self._cancel_check = is_cancelled or _never_cancelled
         self._deadline = None
         if limits.time_limit_ms is not None:
@@ -133,6 +155,21 @@ class PythonSearchEngine(IEngine):
             return self._static_eval(position)
 
         self._nodes += 1
+        alpha_orig = alpha
+        beta_orig = beta
+        tt_key = position._key_stack[-1]
+        tt_entry = self._tt.get(tt_key)
+        tt_move = tt_entry.best_move if tt_entry is not None else None
+
+        if tt_entry is not None and tt_entry.depth >= depth:
+            if tt_entry.bound == _TT_EXACT:
+                return tt_entry.score
+            if tt_entry.bound == _TT_LOWER:
+                alpha = max(alpha, tt_entry.score)
+            else:
+                beta = min(beta, tt_entry.score)
+            if alpha >= beta:
+                return tt_entry.score
 
         if self._is_draw(position):
             return 0
@@ -147,8 +184,9 @@ class PythonSearchEngine(IEngine):
                 return -_MATE_SCORE + ply
             return 0
 
-        ordered = self._order_moves(position, legal)
+        ordered = self._order_moves(position, legal, tt_move=tt_move)
         best_score = -_INF_SCORE
+        best_move: Move | None = None
 
         for move in ordered:
             position.make_move(move)
@@ -157,6 +195,7 @@ class PythonSearchEngine(IEngine):
 
             if score > best_score:
                 best_score = score
+                best_move = move
             if score > alpha:
                 alpha = score
             if alpha >= beta:
@@ -166,6 +205,13 @@ class PythonSearchEngine(IEngine):
 
         if best_score == -_INF_SCORE:
             return self._static_eval(position)
+
+        bound = _TT_EXACT
+        if best_score <= alpha_orig:
+            bound = _TT_UPPER
+        elif best_score >= beta_orig:
+            bound = _TT_LOWER
+        self._store_tt(tt_key, depth, best_score, bound, best_move=best_move)
         return best_score
 
     def _quiescence(
@@ -236,19 +282,32 @@ class PythonSearchEngine(IEngine):
             return True
         return self._deadline is not None and perf_counter() >= self._deadline
 
-    def _order_moves(self, position: Position, moves: list[Move]) -> list[Move]:
+    def _order_moves(
+        self,
+        position: Position,
+        moves: list[Move],
+        tt_move: Move | None = None,
+    ) -> list[Move]:
         return sorted(
             moves,
-            key=lambda move: self._move_order_score(position, move),
+            key=lambda move: self._move_order_score(position, move, tt_move),
             reverse=True,
         )
 
-    def _move_order_score(self, position: Position, move: Move) -> int:
+    def _move_order_score(
+        self,
+        position: Position,
+        move: Move,
+        tt_move: Move | None = None,
+    ) -> int:
         moving_piece = position.board[move.from_sq]
         if moving_piece is None:
             return -_INF_SCORE
 
         score = 0
+        if tt_move is not None and move == tt_move:
+            score += 100_000
+
         if move.flag == MoveFlag.PROMOTION and move.promotion is not None:
             score += 20_000 + _PIECE_VALUES[move.promotion]
 
@@ -271,6 +330,21 @@ class PythonSearchEngine(IEngine):
             move.to_sq,
         )
         return score
+
+    def _store_tt(
+        self,
+        key: object,
+        depth: int,
+        score: int,
+        bound: int,
+        best_move: Move | None,
+    ) -> None:
+        existing = self._tt.get(key)
+        if existing is not None and existing.depth > depth:
+            return
+        if len(self._tt) >= self._tt_max_entries and key not in self._tt:
+            self._tt.clear()
+        self._tt[key] = _TTEntry(depth=depth, score=score, bound=bound, best_move=best_move)
 
     def _is_noisy_move(self, position: Position, move: Move) -> bool:
         if move.flag in (MoveFlag.EN_PASSANT, MoveFlag.PROMOTION):

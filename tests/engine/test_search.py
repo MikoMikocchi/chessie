@@ -52,3 +52,11 @@ class TestPythonSearchEngine:
         legal = MoveGenerator(pos).generate_legal_moves()
         assert result.best_move in legal
         assert result.depth == 0
+
+    def test_populates_transposition_table(self) -> None:
+        pos = position_from_fen(STARTING_FEN)
+        engine = PythonSearchEngine()
+
+        _ = engine.search(pos, SearchLimits(max_depth=3, time_limit_ms=None))
+
+        assert len(engine._tt) > 0  # type: ignore[attr-defined]
