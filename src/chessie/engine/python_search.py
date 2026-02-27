@@ -23,6 +23,8 @@ _KILLER_PRIMARY_BONUS = 9_000
 _KILLER_SECONDARY_BONUS = 8_000
 _HISTORY_BONUS_FACTOR = 32
 _HISTORY_MAX_SCORE = 8_000
+_NULL_MOVE_MIN_DEPTH = 3
+_NULL_MOVE_REDUCTION = 2
 
 _PIECE_VALUES: dict[PieceType, int] = {
     PieceType.PAWN: 100,
@@ -44,6 +46,14 @@ class _TTEntry:
     score: int
     bound: int
     best_move: Move | None
+
+
+@dataclass(slots=True)
+class _NullMoveState:
+    side_to_move: Color
+    en_passant: Square | None
+    halfmove_clock: int
+    fullmove_number: int
 
 
 class PythonSearchEngine(IEngine):
@@ -164,6 +174,7 @@ class PythonSearchEngine(IEngine):
         alpha: int,
         beta: int,
         ply: int,
+        allow_null: bool = True,
     ) -> int:
         if self._should_stop():
             return self._static_eval(position)
@@ -192,9 +203,32 @@ class PythonSearchEngine(IEngine):
             return self._quiescence(position, alpha, beta, ply)
 
         gen = MoveGenerator(position)
+        in_check = gen.is_in_check(position.side_to_move)
+
+        if self._can_apply_null_move(position, depth, in_check, allow_null):
+            null_state = self._make_null_move(position)
+            try:
+                reduction = _NULL_MOVE_REDUCTION + (depth // 4)
+                null_depth = max(0, depth - 1 - reduction)
+                null_score = -self._negamax(
+                    position,
+                    null_depth,
+                    -beta,
+                    -beta + 1,
+                    ply + 1,
+                    allow_null=False,
+                )
+            finally:
+                self._unmake_null_move(position, null_state)
+
+            if self._should_stop():
+                return self._static_eval(position)
+            if null_score >= beta:
+                return beta
+
         legal = gen.generate_legal_moves()
         if not legal:
-            if gen.is_in_check(position.side_to_move):
+            if in_check:
                 return -_MATE_SCORE + ply
             return 0
 
@@ -375,6 +409,59 @@ class PythonSearchEngine(IEngine):
         if move.flag in (MoveFlag.EN_PASSANT, MoveFlag.PROMOTION):
             return True
         return position.board[move.to_sq] is not None
+
+    def _can_apply_null_move(
+        self,
+        position: Position,
+        depth: int,
+        in_check: bool,
+        allow_null: bool,
+    ) -> bool:
+        if not allow_null or in_check:
+            return False
+        if depth < _NULL_MOVE_MIN_DEPTH:
+            return False
+        return self._has_non_pawn_material(position, position.side_to_move)
+
+    def _has_non_pawn_material(self, position: Position, side: Color) -> bool:
+        for sq in position.board.all_pieces(side):
+            piece = position.board[sq]
+            if piece is None:
+                continue
+            if piece.piece_type not in (PieceType.KING, PieceType.PAWN):
+                return True
+        return False
+
+    def _make_null_move(self, position: Position) -> _NullMoveState:
+        state = _NullMoveState(
+            side_to_move=position.side_to_move,
+            en_passant=position.en_passant,
+            halfmove_clock=position.halfmove_clock,
+            fullmove_number=position.fullmove_number,
+        )
+        position.en_passant = None
+        position.halfmove_clock += 1
+        if position.side_to_move == Color.BLACK:
+            position.fullmove_number += 1
+        position.side_to_move = position.side_to_move.opposite
+
+        key = position._position_key()
+        position._key_stack.append(key)
+        position._key_counts[key] = position._key_counts.get(key, 0) + 1
+        return state
+
+    def _unmake_null_move(self, position: Position, state: _NullMoveState) -> None:
+        key = position._key_stack.pop()
+        key_count = position._key_counts[key] - 1
+        if key_count:
+            position._key_counts[key] = key_count
+        else:
+            del position._key_counts[key]
+
+        position.side_to_move = state.side_to_move
+        position.en_passant = state.en_passant
+        position.halfmove_clock = state.halfmove_clock
+        position.fullmove_number = state.fullmove_number
 
     def _is_quiet_move(self, position: Position, move: Move) -> bool:
         if move.flag in (MoveFlag.PROMOTION, MoveFlag.EN_PASSANT):

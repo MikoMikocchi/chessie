@@ -1,11 +1,22 @@
 """Tests for the built-in Python chess engine."""
 
+from chessie.core.enums import Color
 from chessie.core.move import Move
 from chessie.core.move_generator import MoveGenerator
 from chessie.core.notation import STARTING_FEN, position_from_fen
 from chessie.core.rules import Rules
 from chessie.core.types import parse_square
 from chessie.engine import PythonSearchEngine, SearchLimits
+
+
+class _NullTrackingEngine(PythonSearchEngine):
+    def __init__(self) -> None:
+        super().__init__()
+        self.null_move_calls = 0
+
+    def _make_null_move(self, position):
+        self.null_move_calls += 1
+        return super()._make_null_move(position)
 
 
 class TestPythonSearchEngine:
@@ -85,3 +96,43 @@ class TestPythonSearchEngine:
         ordered = engine._order_moves(pos, [other, favored], ply=1)
 
         assert ordered[0] == favored
+
+    def test_uses_null_move_pruning_in_normal_position(self) -> None:
+        pos = position_from_fen(STARTING_FEN)
+        engine = _NullTrackingEngine()
+
+        _ = engine.search(pos, SearchLimits(max_depth=4, time_limit_ms=None))
+
+        assert engine.null_move_calls > 0
+
+    def test_skips_null_move_pruning_in_pawn_only_endgame(self) -> None:
+        pos = position_from_fen("8/3k4/8/8/8/4K3/3P4/8 w - - 0 1")
+        engine = _NullTrackingEngine()
+
+        _ = engine.search(pos, SearchLimits(max_depth=5, time_limit_ms=None))
+
+        assert engine.null_move_calls == 0
+
+    def test_null_move_round_trip_restores_position_state(self) -> None:
+        pos = position_from_fen("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1")
+        engine = PythonSearchEngine()
+
+        initial_key_stack = pos._key_stack.copy()
+        initial_key_counts = pos._key_counts.copy()
+        initial_side = pos.side_to_move
+        initial_en_passant = pos.en_passant
+        initial_halfmove = pos.halfmove_clock
+        initial_fullmove = pos.fullmove_number
+
+        state = engine._make_null_move(pos)
+        assert pos.side_to_move == Color.WHITE
+        assert pos.en_passant is None
+
+        engine._unmake_null_move(pos, state)
+
+        assert pos.side_to_move == initial_side
+        assert pos.en_passant == initial_en_passant
+        assert pos.halfmove_clock == initial_halfmove
+        assert pos.fullmove_number == initial_fullmove
+        assert pos._key_stack == initial_key_stack
+        assert pos._key_counts == initial_key_counts
