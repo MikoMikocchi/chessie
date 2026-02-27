@@ -50,3 +50,6 @@ coverage.xml
 # Build artifacts
 *.so
 *.dylib
+
+# Game files
+*.pgn

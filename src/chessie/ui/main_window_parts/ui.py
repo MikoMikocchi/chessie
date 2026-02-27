@@ -87,6 +87,11 @@ def setup_menu(host: Any) -> None:
     host._act_save_pgn.triggered.connect(host._on_save_pgn)
     host._menu_game.addAction(host._act_save_pgn)
 
+    host._act_analyze_game = QAction(s.menu_analyze_game, host)
+    host._act_analyze_game.setShortcut("Ctrl+Shift+A")
+    host._act_analyze_game.triggered.connect(host._on_analyze_game)
+    host._menu_game.addAction(host._act_analyze_game)
+
     host._menu_game.addSeparator()
 
     host._act_flip = QAction(s.menu_flip_board, host)
@@ -125,6 +130,7 @@ def retranslate_ui(host: Any) -> None:
     host._act_new_game.setText(s.menu_new_game)
     host._act_open_pgn.setText(s.menu_open_pgn)
     host._act_save_pgn.setText(s.menu_save_pgn)
+    host._act_analyze_game.setText(s.menu_analyze_game)
     host._act_flip.setText(s.menu_flip_board)
     host._act_quit.setText(s.menu_quit)
     host._menu_settings.setTitle(s.menu_settings)

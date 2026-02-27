@@ -46,6 +46,9 @@ def disconnect_game_events(host: Any) -> None:
 
 def after_new_game(host: Any) -> None:
     """Reset auxiliary UI state after creating a new game."""
+    host._analysis_session.cancel_analysis()
+    host._analysis_report = None
+    host._act_analyze_game.setEnabled(True)
     host._pgn_move_comments = []
     host._history_view_ply = None
     host._game_sync.after_new_game()

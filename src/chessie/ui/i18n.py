@@ -21,6 +21,7 @@ class Strings:
     menu_new_game: str
     menu_open_pgn: str
     menu_save_pgn: str
+    menu_analyze_game: str
     menu_flip_board: str
     menu_quit: str
     menu_settings: str
@@ -32,6 +33,12 @@ class Strings:
     status_saved_pgn: str  # e.g. "Saved PGN: {name}"
     status_engine_error: str  # e.g. "Engine error: {msg}"
     status_draw_declined: str
+    status_analysis_started: str  # e.g. "Analysis started (N moves)..."
+    status_analyzing_progress: str  # e.g. "Analyzing move X/Y..."
+    status_analysis_done: str  # e.g. "Analysis complete. White ACPL: ... "
+    status_analysis_failed: str  # e.g. "Analysis failed: {msg}"
+    status_analysis_cancelled: str
+    status_analysis_no_moves: str
 
     # Game-over reasons
     game_over_title: str
@@ -124,6 +131,16 @@ class Strings:
     settings_engine_time_suffix: str
     settings_engine_note: str
 
+    # ── AnalysisDialog ────────────────────────────────────────────────────
+    analysis_title: str
+    analysis_summary: str
+    analysis_hint_jump: str
+    analysis_col_move: str
+    analysis_col_played: str
+    analysis_col_best: str
+    analysis_col_cp_loss: str
+    analysis_col_verdict: str
+
 
 # ── Built-in locales ─────────────────────────────────────────────────────────
 
@@ -132,6 +149,7 @@ _EN = Strings(
     menu_new_game="&New Game...",
     menu_open_pgn="&Open PGN...",
     menu_save_pgn="&Save PGN...",
+    menu_analyze_game="&Analyze Game...",
     menu_flip_board="&Flip Board",
     menu_quit="&Quit",
     menu_settings="&Settings",
@@ -142,6 +160,12 @@ _EN = Strings(
     status_saved_pgn="Saved PGN: {name}",
     status_engine_error="Engine error: {msg}",
     status_draw_declined="Draw offer declined by Chessie AI.",
+    status_analysis_started="Analysis started ({total} moves)...",
+    status_analyzing_progress="Analyzing move {done}/{total}...",
+    status_analysis_done="Analysis complete. White ACPL: {white_avg}, Black ACPL: {black_avg}",
+    status_analysis_failed="Analysis failed: {msg}",
+    status_analysis_cancelled="Analysis cancelled.",
+    status_analysis_no_moves="No moves to analyze.",
     game_over_title="Game Over",
     draw_stalemate="Draw by stalemate.",
     draw_agreed="Draw by agreement.",
@@ -205,6 +229,14 @@ _EN = Strings(
     settings_engine_depth_suffix=" ply",
     settings_engine_time_suffix=" ms",
     settings_engine_note="Changes take effect from the next game.",
+    analysis_title="Game Analysis",
+    analysis_summary="White ACPL: {white_avg} (blunders: {white_blunders}) | Black ACPL: {black_avg} (blunders: {black_blunders})",
+    analysis_hint_jump="Double-click a row to jump to that move on the board.",
+    analysis_col_move="Move",
+    analysis_col_played="Played",
+    analysis_col_best="Best",
+    analysis_col_cp_loss="CPL",
+    analysis_col_verdict="Verdict",
 )
 
 _RU = Strings(
@@ -212,6 +244,7 @@ _RU = Strings(
     menu_new_game="&Новая игра...",
     menu_open_pgn="&Открыть PGN...",
     menu_save_pgn="&Сохранить PGN...",
+    menu_analyze_game="&Анализ партии...",
     menu_flip_board="&Перевернуть доску",
     menu_quit="&Выход",
     menu_settings="&Настройки",
@@ -222,6 +255,12 @@ _RU = Strings(
     status_saved_pgn="Сохранён PGN: {name}",
     status_engine_error="Ошибка движка: {msg}",
     status_draw_declined="Предложение ничьей отклонено Chessie AI.",
+    status_analysis_started="Анализ запущен ({total} ходов)...",
+    status_analyzing_progress="Анализ хода {done}/{total}...",
+    status_analysis_done="Анализ завершён. ACPL белых: {white_avg}, ACPL чёрных: {black_avg}",
+    status_analysis_failed="Ошибка анализа: {msg}",
+    status_analysis_cancelled="Анализ отменён.",
+    status_analysis_no_moves="Нет ходов для анализа.",
     game_over_title="Конец игры",
     draw_stalemate="Пат.",
     draw_agreed="Ничья по соглашению.",
@@ -285,6 +324,14 @@ _RU = Strings(
     settings_engine_depth_suffix=" пл.",
     settings_engine_time_suffix=" мс",
     settings_engine_note="Изменения вступят в силу с начала следующей игры.",
+    analysis_title="Анализ партии",
+    analysis_summary="ACPL белых: {white_avg} (грубых: {white_blunders}) | ACPL чёрных: {black_avg} (грубых: {black_blunders})",
+    analysis_hint_jump="Двойной клик по строке — перейти к ходу на доске.",
+    analysis_col_move="Ход",
+    analysis_col_played="Сыграно",
+    analysis_col_best="Лучший",
+    analysis_col_cp_loss="CPL",
+    analysis_col_verdict="Оценка",
 )
 
 _LOCALES: dict[str, Strings] = {

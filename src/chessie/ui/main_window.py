@@ -15,9 +15,12 @@ from chessie.game.controller import GameController
 from chessie.game.interfaces import GameEndReason, GamePhase
 from chessie.game.player import AIPlayer
 from chessie.game.state import GameState
+from chessie.ui.analysis_session import AnalysisSession
+from chessie.ui.dialogs.analysis_dialog import AnalysisDialog
 from chessie.ui.dialogs.settings_dialog import AppSettings, SettingsDialog
 from chessie.ui.engine_session import EngineSession
 from chessie.ui.game_sync import GameSync
+from chessie.ui.main_window_parts import analysis as analysis_part
 from chessie.ui.main_window_parts import game as game_part
 from chessie.ui.main_window_parts import lifecycle as lifecycle_part
 from chessie.ui.main_window_parts import pgn as pgn_part
@@ -44,6 +47,7 @@ class MainWindow(QMainWindow):
     _act_new_game: Any
     _act_open_pgn: Any
     _act_save_pgn: Any
+    _act_analyze_game: Any
     _act_flip: Any
     _act_quit: Any
     _act_settings: Any
@@ -60,6 +64,7 @@ class MainWindow(QMainWindow):
         self._is_loading_pgn = False
         self._pgn_move_comments: list[str | None] = []
         self._history_view_ply: int | None = None
+        self._analysis_report: Any = None
 
         self._setup_ui()
 
@@ -90,6 +95,13 @@ class MainWindow(QMainWindow):
             parent=self,
             max_depth=4,
             time_limit_ms=900,
+        )
+        self._analysis_session = AnalysisSession(
+            on_progress=self._on_analysis_progress,
+            on_finished=self._on_analysis_finished,
+            on_failed=self._on_analysis_failed,
+            on_cancelled=self._on_analysis_cancelled,
+            parent=self,
         )
         self._setup_menu()
         self._connect_signals()
@@ -157,6 +169,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event: QCloseEvent | None) -> None:
         self._disconnect_game_events()
+        self._analysis_session.shutdown()
         self._engine_session.shutdown()
         super().closeEvent(event)
 
@@ -180,6 +193,9 @@ class MainWindow(QMainWindow):
     def _on_flip(self) -> None:
         game_part.on_flip(self)
 
+    def _on_analyze_game(self) -> None:
+        analysis_part.on_analyze_game(self, message_box_cls=QMessageBox)
+
     def _on_move_history_selected(self, ply: int) -> None:
         game_part.on_move_history_selected(self, ply)
 
@@ -202,6 +218,24 @@ class MainWindow(QMainWindow):
 
     def _on_phase_changed(self, phase: GamePhase) -> None:
         lifecycle_part.on_phase_changed(self, phase)
+
+    # ── Analysis callbacks ────────────────────────────────────────────────
+
+    def _on_analysis_progress(self, done: int, total: int) -> None:
+        analysis_part.on_analysis_progress(self, done, total)
+
+    def _on_analysis_finished(self, report: Any) -> None:
+        analysis_part.on_analysis_finished(
+            self,
+            report,
+            analysis_dialog_cls=AnalysisDialog,
+        )
+
+    def _on_analysis_failed(self, message: str) -> None:
+        analysis_part.on_analysis_failed(self, message)
+
+    def _on_analysis_cancelled(self) -> None:
+        analysis_part.on_analysis_cancelled(self)
 
     # ── Engine callbacks ──────────────────────────────────────────────────
 
