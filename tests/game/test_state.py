@@ -145,6 +145,28 @@ class TestGameStateTermination:
         assert gs.result == GameResult.DRAW
         assert gs.end_reason == GameEndReason.DRAW_RULE
 
+    def test_claimable_draw_not_applied_automatically(self) -> None:
+        gs = GameState()
+        gs.setup("4k3/8/8/8/8/8/4K2R/7r w - - 100 51")
+        gs._check_game_over()
+        assert gs.result == GameResult.IN_PROGRESS
+        assert gs.end_reason == GameEndReason.NONE
+        assert gs.can_claim_draw_by_rule()
+
+    def test_claim_draw_by_rule(self) -> None:
+        gs = GameState()
+        gs.setup("4k3/8/8/8/8/8/4K2R/7r w - - 100 51")
+        assert gs.claim_draw_by_rule()
+        assert gs.result == GameResult.DRAW
+        assert gs.end_reason == GameEndReason.DRAW_RULE
+        assert gs.is_game_over
+
+    def test_claim_draw_by_rule_returns_false_when_unavailable(self) -> None:
+        gs = GameState()
+        gs.setup()
+        assert not gs.claim_draw_by_rule()
+        assert gs.result == GameResult.IN_PROGRESS
+
     def test_undo_reverses_game_over(self) -> None:
         gs = GameState()
         gs.setup()

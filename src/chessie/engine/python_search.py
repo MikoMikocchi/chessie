@@ -343,13 +343,7 @@ class PythonSearchEngine(IEngine):
         return alpha
 
     def _is_draw(self, position: Position) -> bool:
-        return (
-            Rules.is_insufficient_material(position)
-            or Rules.is_seventy_five_move_rule(position)
-            or Rules.is_fivefold_repetition(position)
-            or Rules.is_fifty_move_rule(position)
-            or Rules.is_threefold_repetition(position)
-        )
+        return Rules.is_automatic_draw(position)
 
     def _should_stop(self) -> bool:
         if self._nodes - self._last_yield_nodes >= 4096:

@@ -180,6 +180,22 @@ class GameController(IGameController):
         self._state.set_draw(GameEndReason.DRAW_AGREED)
         self._emit_game_over(GameResult.DRAW)
 
+    def claim_draw(self, color: Color) -> bool:
+        if self._state.is_game_over:
+            return False
+        if color != self._state.side_to_move:
+            return False
+        if self._clock:
+            self._clock.stop()
+        if not self._state.claim_draw_by_rule():
+            if self._clock:
+                cp = self.current_player
+                if cp is not None and not self._clock.is_running:
+                    self._clock.start(cp.color)
+            return False
+        self._emit_game_over(GameResult.DRAW)
+        return True
+
     def decline_draw(self) -> None:
         self._state.draw_offer = DrawOffer.DECLINED
         self._state.draw_offer_by = None

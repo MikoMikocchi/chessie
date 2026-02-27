@@ -132,6 +132,21 @@ class GameState:
         self.end_reason = GameEndReason.FLAG_FALL
         self.phase = GamePhase.GAME_OVER
 
+    def can_claim_draw_by_rule(self) -> bool:
+        """True when side to move can claim draw (50-move or threefold)."""
+        return Rules.is_claimable_draw(self.position)
+
+    def claim_draw_by_rule(self) -> bool:
+        """Claim a rule-based draw if currently claimable.
+
+        Returns:
+            True if draw was claimed and game is now over.
+        """
+        if self.is_game_over or not self.can_claim_draw_by_rule():
+            return False
+        self.set_draw(GameEndReason.DRAW_RULE)
+        return True
+
     # ── Query helpers ────────────────────────────────────────────────────
 
     @property
@@ -177,31 +192,8 @@ class GameState:
             self.phase = GamePhase.GAME_OVER
             return
 
-        if Rules.is_insufficient_material(self.position):
+        if Rules.is_automatic_draw(self.position):
             self.result = GameResult.DRAW
             self.end_reason = GameEndReason.DRAW_RULE
             self.phase = GamePhase.GAME_OVER
             return
-
-        if Rules.is_seventy_five_move_rule(self.position):
-            self.result = GameResult.DRAW
-            self.end_reason = GameEndReason.DRAW_RULE
-            self.phase = GamePhase.GAME_OVER
-            return
-
-        if Rules.is_fivefold_repetition(self.position):
-            self.result = GameResult.DRAW
-            self.end_reason = GameEndReason.DRAW_RULE
-            self.phase = GamePhase.GAME_OVER
-            return
-
-        if Rules.is_fifty_move_rule(self.position):
-            self.result = GameResult.DRAW
-            self.end_reason = GameEndReason.DRAW_RULE
-            self.phase = GamePhase.GAME_OVER
-            return
-
-        if Rules.is_threefold_repetition(self.position):
-            self.result = GameResult.DRAW
-            self.end_reason = GameEndReason.DRAW_RULE
-            self.phase = GamePhase.GAME_OVER

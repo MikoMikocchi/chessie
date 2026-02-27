@@ -101,6 +101,22 @@ class TestRepetition:
             pos.make_move(Move(parse_square("f7"), parse_square("h8")))
 
         assert Rules.is_threefold_repetition(pos)
+        assert Rules.is_claimable_draw(pos)
+        assert Rules.game_result(pos) == GameResult.IN_PROGRESS
+
+
+class TestDrawPolicy:
+    def test_fifty_move_is_claimable_not_automatic(self) -> None:
+        pos = position_from_fen("4k3/8/8/8/8/8/4K2R/7r w - - 100 51")
+        assert Rules.is_fifty_move_rule(pos)
+        assert Rules.is_claimable_draw(pos)
+        assert not Rules.is_automatic_draw(pos)
+        assert Rules.game_result(pos) == GameResult.IN_PROGRESS
+
+    def test_seventy_five_move_is_automatic(self) -> None:
+        pos = position_from_fen("4k3/8/8/8/8/8/4K2R/7r w - - 150 76")
+        assert Rules.is_seventy_five_move_rule(pos)
+        assert Rules.is_automatic_draw(pos)
         assert Rules.game_result(pos) == GameResult.DRAW
 
 

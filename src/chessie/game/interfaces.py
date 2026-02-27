@@ -205,5 +205,9 @@ class IGameController(ABC):
         """Opponent accepts the draw offer."""
 
     @abstractmethod
+    def claim_draw(self, color: Color) -> bool:
+        """Player claims draw by rule (50-move / threefold)."""
+
+    @abstractmethod
     def undo_move(self) -> bool:
         """Undo the last move. Returns True on success."""

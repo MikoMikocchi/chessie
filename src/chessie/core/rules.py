@@ -15,6 +15,10 @@ if TYPE_CHECKING:
 class Rules:
     """Static rule-checker that operates on a :class:`Position`."""
 
+    # Product policy:
+    # - Claim-based draws: 50-move rule, threefold repetition.
+    # - Automatic draws: insufficient material, 75-move rule, fivefold repetition.
+
     @staticmethod
     def is_in_check(position: Position) -> bool:
         gen = MoveGenerator(position)
@@ -84,6 +88,22 @@ class Rules:
         return position.repetition_count() >= 5
 
     @staticmethod
+    def is_claimable_draw(position: Position) -> bool:
+        """Whether the side to move may claim an immediate draw by rule."""
+        return Rules.is_fifty_move_rule(position) or Rules.is_threefold_repetition(
+            position
+        )
+
+    @staticmethod
+    def is_automatic_draw(position: Position) -> bool:
+        """Whether the position is an automatic draw without player claim."""
+        return (
+            Rules.is_insufficient_material(position)
+            or Rules.is_seventy_five_move_rule(position)
+            or Rules.is_fivefold_repetition(position)
+        )
+
+    @staticmethod
     def game_result(position: Position) -> GameResult:
         """Determine the current game result."""
         gen = MoveGenerator(position)
@@ -98,19 +118,7 @@ class Rules:
                 )
             return GameResult.DRAW  # stalemate
 
-        if Rules.is_insufficient_material(position):
-            return GameResult.DRAW
-
-        if Rules.is_seventy_five_move_rule(position):
-            return GameResult.DRAW
-
-        if Rules.is_fivefold_repetition(position):
-            return GameResult.DRAW
-
-        if Rules.is_fifty_move_rule(position):
-            return GameResult.DRAW
-
-        if Rules.is_threefold_repetition(position):
+        if Rules.is_automatic_draw(position):
             return GameResult.DRAW
 
         return GameResult.IN_PROGRESS

@@ -203,3 +203,15 @@ class TestPythonSearchEngine:
         )
         assert engine._lmr_reduction(depth=5, move_index=4) == 1
         assert engine._lmr_reduction(depth=8, move_index=8) == 2
+
+    def test_claimable_draw_is_not_terminal_for_search(self) -> None:
+        pos = position_from_fen("4k3/8/8/8/8/8/4K2R/7r w - - 100 51")
+        engine = PythonSearchEngine()
+
+        assert not engine._is_draw(pos)
+
+    def test_automatic_draw_is_terminal_for_search(self) -> None:
+        pos = position_from_fen("4k3/8/8/8/8/8/4K2R/7r w - - 150 76")
+        engine = PythonSearchEngine()
+
+        assert engine._is_draw(pos)

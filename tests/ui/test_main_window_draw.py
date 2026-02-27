@@ -26,6 +26,7 @@ class _StubController:
         black_human: bool = True,
         is_game_over: bool = False,
         side_to_move: Color = Color.WHITE,
+        claim_outcome: bool = False,
     ) -> None:
         self.state = SimpleNamespace(
             is_game_over=is_game_over,
@@ -35,9 +36,15 @@ class _StubController:
             Color.WHITE: _StubPlayer(is_human=white_human),
             Color.BLACK: _StubPlayer(is_human=black_human),
         }
+        self.claim_outcome = claim_outcome
+        self.claimed: list[Color] = []
         self.offered: list[Color] = []
         self.accepted: list[Color] = []
         self.declined = 0
+
+    def claim_draw(self, color: Color) -> bool:
+        self.claimed.append(color)
+        return self.claim_outcome
 
     def offer_draw(self, color: Color) -> None:
         self.offered.append(color)
@@ -80,6 +87,7 @@ class TestMainWindowDraw:
         ctrl = _StubController()
         MainWindow._on_draw(_make_window(ctrl))
 
+        assert ctrl.claimed == [Color.WHITE]
         assert ctrl.offered == [Color.WHITE]
         assert ctrl.accepted == [Color.BLACK]
         assert ctrl.declined == 0
@@ -95,6 +103,7 @@ class TestMainWindowDraw:
         ctrl = _StubController(side_to_move=Color.BLACK)
         MainWindow._on_draw(_make_window(ctrl))
 
+        assert ctrl.claimed == [Color.BLACK]
         assert ctrl.offered == [Color.BLACK]
         assert ctrl.accepted == []
         assert ctrl.declined == 1
@@ -103,14 +112,25 @@ class TestMainWindowDraw:
         ctrl = _StubController(black_human=False)
         MainWindow._on_draw(_make_window(ctrl))
 
+        assert ctrl.claimed == [Color.WHITE]
         assert ctrl.offered == [Color.WHITE]
         assert ctrl.accepted == []
         assert ctrl.declined == 1
+
+    def test_claim_draw_short_circuits_offer_flow(self) -> None:
+        ctrl = _StubController(claim_outcome=True)
+        MainWindow._on_draw(_make_window(ctrl))
+
+        assert ctrl.claimed == [Color.WHITE]
+        assert ctrl.offered == []
+        assert ctrl.accepted == []
+        assert ctrl.declined == 0
 
     def test_draw_click_ignored_when_game_is_over(self) -> None:
         ctrl = _StubController(is_game_over=True)
         MainWindow._on_draw(_make_window(ctrl))
 
+        assert ctrl.claimed == []
         assert ctrl.offered == []
         assert ctrl.accepted == []
         assert ctrl.declined == 0

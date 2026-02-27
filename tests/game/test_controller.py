@@ -119,6 +119,23 @@ class TestResignDraw:
         ok = ctrl.submit_move(Move(E2, E4, MoveFlag.DOUBLE_PAWN))
         assert not ok
 
+    def test_claim_draw_success_for_side_to_move(self) -> None:
+        ctrl = _make_hh_controller(fen="4k3/8/8/8/8/8/4K2R/7r w - - 100 51")
+        assert ctrl.claim_draw(Color.WHITE)
+        assert ctrl.state.result == GameResult.DRAW
+        assert ctrl.state.end_reason == GameEndReason.DRAW_RULE
+        assert ctrl.state.is_game_over
+
+    def test_claim_draw_rejected_for_wrong_side(self) -> None:
+        ctrl = _make_hh_controller(fen="4k3/8/8/8/8/8/4K2R/7r w - - 100 51")
+        assert not ctrl.claim_draw(Color.BLACK)
+        assert ctrl.state.result == GameResult.IN_PROGRESS
+
+    def test_claim_draw_rejected_when_condition_not_met(self) -> None:
+        ctrl = _make_hh_controller()
+        assert not ctrl.claim_draw(Color.WHITE)
+        assert ctrl.state.result == GameResult.IN_PROGRESS
+
 
 class TestUndoMove:
     def test_undo_reverts(self) -> None:

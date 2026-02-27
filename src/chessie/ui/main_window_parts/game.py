@@ -76,6 +76,9 @@ def on_draw(host: Any, message_box_cls: type[Any]) -> None:
         return
 
     offering_color = state.side_to_move
+    if host._controller.claim_draw(offering_color):
+        return
+
     host._controller.offer_draw(offering_color)
 
     if host._is_human_vs_human():
