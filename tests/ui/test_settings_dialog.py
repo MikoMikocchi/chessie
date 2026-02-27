@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
-from chessie.ui.dialogs.settings_dialog import AppSettings, SettingsDialog, _BoardPage
+from chessie.ui.dialogs.settings_dialog import (
+    AppSettings,
+    SettingsDialog,
+    _BoardPage,
+    _BoardThemePreviewWidget,
+    _MoveNotationPreviewWidget,
+)
 
 
 def test_dialog_accept_applies_changes_to_settings() -> None:
@@ -34,3 +40,53 @@ def test_board_page_notation_preview_updates_on_combo_change() -> None:
 
     page._notation_combo.setCurrentIndex(0)
     assert page._notation_preview._use_figurine_notation is True
+
+
+def test_dialog_retranslate_keeps_sidebar_items_populated() -> None:
+    dialog = SettingsDialog(AppSettings())
+    dialog.retranslate_ui()
+    assert dialog._sidebar.count() == len(dialog._pages)
+    assert all(dialog._sidebar.item(i).text() for i in range(dialog._sidebar.count()))
+
+
+def test_dialog_accept_applies_general_sound_engine_pages() -> None:
+    settings = AppSettings()
+    dialog = SettingsDialog(settings)
+
+    general_page = dialog._pages[0]
+    sound_page = dialog._pages[2]
+    engine_page = dialog._pages[3]
+
+    general_page._lang_combo.setCurrentText("Russian")
+    sound_page._enabled_check.setChecked(False)
+    sound_page._volume_slider.setValue(25)
+    engine_page._depth_spin.setValue(7)
+    engine_page._time_spin.setValue(1500)
+
+    dialog._on_accept()
+
+    assert settings.language == "Russian"
+    assert settings.sound_enabled is False
+    assert settings.sound_volume == 25
+    assert settings.engine_depth == 7
+    assert settings.engine_time_ms == 1500
+
+
+def test_board_theme_preview_setter_and_paint_event() -> None:
+    preview = _BoardThemePreviewWidget("Classic")
+    preview.set_theme_name("Classic")
+    assert preview._theme_name == "Classic"
+
+    preview.set_theme_name("Unknown")
+    assert preview._theme_name == "Unknown"
+    preview.paintEvent(None)
+
+
+def test_move_notation_preview_setter_and_paint_event() -> None:
+    preview = _MoveNotationPreviewWidget()
+    preview.set_use_figurine_notation(True)
+    assert preview._use_figurine_notation is True
+
+    preview.set_use_figurine_notation(False)
+    assert preview._use_figurine_notation is False
+    preview.paintEvent(None)

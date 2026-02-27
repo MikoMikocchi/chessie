@@ -57,3 +57,25 @@ def test_remove_last_updates_active_ply() -> None:
     panel.remove_last()
     assert len(panel._records) == 0
     assert panel._active_ply is None
+
+
+def test_add_move_and_clear_cycle() -> None:
+    panel = MovePanel()
+    panel.add_move(_rec("e4"), move_number=1, color=Color.WHITE)
+    assert len(panel._records) == 1
+    assert panel._active_ply == 0
+
+    panel.clear()
+    assert panel._records == []
+    assert panel._move_buttons == {}
+    assert panel._active_ply is None
+
+
+def test_set_use_figurine_notation_noop_when_value_unchanged() -> None:
+    panel = MovePanel()
+    panel.set_history([_rec("Nf3")])
+    first_button = panel._move_buttons[0]
+
+    panel.set_use_figurine_notation(True)
+
+    assert panel._move_buttons[0] is first_button

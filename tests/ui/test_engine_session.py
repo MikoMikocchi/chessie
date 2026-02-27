@@ -44,6 +44,30 @@ class _StubController:
 
 
 class TestEngineSession:
+    def test_shutdown_before_setup_is_noop(self) -> None:
+        session = EngineSession(
+            controller=GameController(),
+            engine_request=_StubEngineRequest(),
+            set_eval=lambda _cp: None,
+            set_status=lambda _text: None,
+            sync_board_interactivity=lambda: None,
+        )
+        session.shutdown()
+        assert session._is_started is False
+
+    def test_setup_twice_keeps_started_state(self) -> None:
+        session = EngineSession(
+            controller=GameController(),
+            engine_request=_StubEngineRequest(),
+            set_eval=lambda _cp: None,
+            set_status=lambda _text: None,
+            sync_board_interactivity=lambda: None,
+        )
+        session.setup()
+        session.setup()
+        assert session._is_started is True
+        session.shutdown()
+
     def test_setup_connects_slots_without_weakref_error(self) -> None:
         session = EngineSession(
             controller=GameController(),
@@ -225,3 +249,94 @@ class TestEngineSession:
         assert session._pending_engine_request is None
         assert session._pending_engine_position is None
         assert session._pending_engine_fen is None
+
+    def test_request_ai_move_ignored_when_not_started_or_shutting_down(self) -> None:
+        session = EngineSession(
+            controller=GameController(),
+            engine_request=_StubEngineRequest(),
+            set_eval=lambda _cp: None,
+            set_status=lambda _text: None,
+            sync_board_interactivity=lambda: None,
+        )
+        session.request_ai_move(position_from_fen(STARTING_FEN))
+        assert session._pending_engine_request is None
+
+        session._is_started = True
+        session._is_shutting_down = True
+        session.request_ai_move(position_from_fen(STARTING_FEN))
+        assert session._pending_engine_request is None
+
+    def test_emit_pending_request_no_pending_is_noop(self) -> None:
+        request = _StubEngineRequest()
+        session = EngineSession(
+            controller=GameController(),
+            engine_request=request,
+            set_eval=lambda _cp: None,
+            set_status=lambda _text: None,
+            sync_board_interactivity=lambda: None,
+        )
+        session._is_started = True
+        session._emit_pending_request()
+        assert request.emitted == []
+
+    def test_on_engine_best_move_ignores_mismatched_request_and_type(self) -> None:
+        controller = _StubController()
+        eval_values: list[float] = []
+        session = EngineSession(
+            controller=controller,  # type: ignore[arg-type]
+            engine_request=_StubEngineRequest(),
+            set_eval=eval_values.append,
+            set_status=lambda _text: None,
+            sync_board_interactivity=lambda: None,
+        )
+
+        session._pending_engine_request = 2
+        session._pending_engine_position = controller.state.position.copy()
+        session._pending_engine_fen = position_to_fen(controller.state.position)
+        session._on_engine_best_move(1, Move(E2, E4), 12, 1, 1)
+        session._on_engine_best_move(2, object(), 12, 1, 1)
+
+        assert eval_values == []
+        assert session._pending_engine_request == 2
+
+    def test_on_engine_best_move_ignores_wrong_phase_or_fen(self) -> None:
+        controller = _StubController()
+        eval_values: list[float] = []
+        session = EngineSession(
+            controller=controller,  # type: ignore[arg-type]
+            engine_request=_StubEngineRequest(),
+            set_eval=eval_values.append,
+            set_status=lambda _text: None,
+            sync_board_interactivity=lambda: None,
+        )
+
+        session._pending_engine_request = 3
+        session._pending_engine_position = controller.state.position.copy()
+        session._pending_engine_fen = position_to_fen(controller.state.position)
+
+        controller.state.phase = GamePhase.AWAITING_MOVE
+        session._on_engine_best_move(3, Move(E2, E4), 12, 1, 1)
+        assert eval_values == []
+
+        controller.state.phase = GamePhase.THINKING
+        session._pending_engine_fen = "invalid-fen"
+        session._on_engine_best_move(3, Move(E2, E4), 12, 1, 1)
+        assert eval_values == []
+
+    def test_set_limits_when_started_uses_signal_path(self) -> None:
+        session = EngineSession(
+            controller=GameController(),
+            engine_request=_StubEngineRequest(),
+            set_eval=lambda _cp: None,
+            set_status=lambda _text: None,
+            sync_board_interactivity=lambda: None,
+        )
+        captured: list[tuple[int, int]] = []
+        session._command_bus.set_limits_requested.connect(
+            lambda depth, ms: captured.append((depth, ms))
+        )
+        session._is_started = True
+
+        session.set_limits(7, 2000)
+
+        assert captured == [(7, 2000)]

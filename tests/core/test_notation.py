@@ -196,6 +196,16 @@ class TestSAN:
         assert move_rank.from_sq == parse_square("e1")
         assert move_rank.to_sq == parse_square("e2")
 
+    def test_move_to_san_full_square_disambiguation(self) -> None:
+        pos = position_from_fen("7k/8/8/8/8/2N5/8/2N3NK w - - 0 1")
+        move = Move(parse_square("c1"), parse_square("e2"))
+        assert move_to_san(pos, move) == "Nc1e2"
+
+    def test_parse_san_illegal_queenside_castling_raises(self) -> None:
+        pos = position_from_fen(STARTING_FEN)
+        with pytest.raises(ValueError, match="Illegal"):
+            parse_san(pos, "0-0-0")
+
 
 class TestPGN:
     def test_build_and_parse_roundtrip(self) -> None:

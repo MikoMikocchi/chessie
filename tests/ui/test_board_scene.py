@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import pytest
+from PyQt6.QtCore import QPointF
 
-from chessie.core.enums import PieceType
+from chessie.core.enums import MoveFlag, PieceType
 from chessie.core.move import Move
 from chessie.core.notation import STARTING_FEN, position_from_fen
 from chessie.core.types import parse_square
@@ -145,3 +146,182 @@ def test_animate_and_sync_with_active_anim_stops_and_syncs() -> None:
     assert anim.stopped is True
     assert scene._active_anim is None
     assert done == [True]
+
+
+def test_set_theme_and_interactive_flags() -> None:
+    scene = BoardScene()
+    original = scene._theme
+    scene.set_interactive(False)
+    assert scene._interactive is False
+
+    scene.set_theme(original)
+    assert scene._theme == original
+
+
+def test_select_square_builds_legal_dots_and_clear_selection_resets() -> None:
+    scene = BoardScene()
+    scene.set_position(position_from_fen(STARTING_FEN))
+
+    scene._select_square(parse_square("e2"))
+    assert scene._selected_sq == parse_square("e2")
+    assert len(scene._legal_dot_items) >= 1
+
+    scene._clear_selection()
+    assert scene._selected_sq is None
+    assert scene._legal_moves == []
+    assert scene._legal_dot_items == []
+
+
+def test_highlight_check_with_no_position_is_safe() -> None:
+    scene = BoardScene()
+    scene.highlight_check()
+    assert scene._highlight_items == []
+
+
+def test_find_legal_move_without_position_returns_none() -> None:
+    scene = BoardScene()
+    assert scene._find_legal_move(parse_square("e2"), parse_square("e4")) is None
+
+
+def test_pos_to_square_outside_board_returns_none() -> None:
+    scene = BoardScene()
+    assert scene._pos_to_square(QPointF(-1, -1)) is None
+
+
+def test_animate_and_sync_uses_animation_path_with_fake_animation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    callbacks: list[object] = []
+
+    class _Signal:
+        def connect(self, cb):
+            callbacks.append(cb)
+
+    class _FakeAnim:
+        def __init__(self, *_args, **_kwargs) -> None:
+            self.finished = _Signal()
+
+        def setDuration(self, _v: int) -> None:
+            return
+
+        def setStartValue(self, _v: object) -> None:
+            return
+
+        def setEndValue(self, _v: object) -> None:
+            return
+
+        def setEasingCurve(self, _v: object) -> None:
+            return
+
+        def start(self, _policy: object) -> None:
+            for cb in callbacks:
+                cb()
+
+    monkeypatch.setattr("chessie.ui.board.board_scene.QPropertyAnimation", _FakeAnim)
+
+    scene = BoardScene()
+    pos = position_from_fen(STARTING_FEN)
+    scene.set_position(pos)
+    move = Move(parse_square("e2"), parse_square("e4"), MoveFlag.DOUBLE_PAWN)
+    nxt = pos.copy()
+    nxt.make_move(move)
+    done: list[bool] = []
+
+    scene.animate_and_sync(move, nxt, on_done=lambda: done.append(True))
+
+    assert done == [True]
+    assert scene._position is nxt
+    assert scene._active_anim is None
+
+
+def test_animate_and_sync_handles_castling_rook_reposition(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    callbacks: list[object] = []
+
+    class _Signal:
+        def connect(self, cb):
+            callbacks.append(cb)
+
+    class _FakeAnim:
+        def __init__(self, *_args, **_kwargs) -> None:
+            self.finished = _Signal()
+
+        def setDuration(self, _v: int) -> None:
+            return
+
+        def setStartValue(self, _v: object) -> None:
+            return
+
+        def setEndValue(self, _v: object) -> None:
+            return
+
+        def setEasingCurve(self, _v: object) -> None:
+            return
+
+        def start(self, _policy: object) -> None:
+            for cb in callbacks:
+                cb()
+
+    monkeypatch.setattr("chessie.ui.board.board_scene.QPropertyAnimation", _FakeAnim)
+
+    scene = BoardScene()
+    pos = position_from_fen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1")
+    scene.set_position(pos)
+
+    move = Move(
+        parse_square("e1"),
+        parse_square("g1"),
+        MoveFlag.CASTLE_KINGSIDE,
+    )
+    nxt = pos.copy()
+    nxt.make_move(move)
+
+    scene.animate_and_sync(move, nxt)
+
+    assert parse_square("f1") in scene._piece_items
+    assert parse_square("h1") not in scene._piece_items
+
+
+def test_animate_and_sync_handles_en_passant_capture(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    callbacks: list[object] = []
+
+    class _Signal:
+        def connect(self, cb):
+            callbacks.append(cb)
+
+    class _FakeAnim:
+        def __init__(self, *_args, **_kwargs) -> None:
+            self.finished = _Signal()
+
+        def setDuration(self, _v: int) -> None:
+            return
+
+        def setStartValue(self, _v: object) -> None:
+            return
+
+        def setEndValue(self, _v: object) -> None:
+            return
+
+        def setEasingCurve(self, _v: object) -> None:
+            return
+
+        def start(self, _policy: object) -> None:
+            for cb in callbacks:
+                cb()
+
+    monkeypatch.setattr("chessie.ui.board.board_scene.QPropertyAnimation", _FakeAnim)
+
+    scene = BoardScene()
+    pos = position_from_fen("7k/8/8/3pP3/8/8/8/K7 w - d6 0 1")
+    scene.set_position(pos)
+
+    move = Move(parse_square("e5"), parse_square("d6"), MoveFlag.EN_PASSANT)
+    nxt = pos.copy()
+    nxt.make_move(move)
+
+    scene.animate_and_sync(move, nxt)
+
+    assert len(scene._piece_items) == 3
