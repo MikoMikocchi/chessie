@@ -1,5 +1,8 @@
 """Tests for the built-in Python chess engine."""
 
+import pytest
+
+import chessie.engine.python_search as pysearch
 from chessie.core.enums import Color
 from chessie.core.move import Move
 from chessie.core.move_generator import MoveGenerator
@@ -37,6 +40,23 @@ class _LmrTrackingEngine(PythonSearchEngine):
         allow_null: bool,
     ) -> bool:
         return False
+
+
+class _QuiescenceTrackingEngine(PythonSearchEngine):
+    def __init__(self) -> None:
+        super().__init__()
+        self.q_calls = 0
+
+    def _quiescence(
+        self,
+        position: Position,
+        alpha: int,
+        beta: int,
+        ply: int,
+        q_depth: int = 0,
+    ) -> int:
+        self.q_calls += 1
+        return super()._quiescence(position, alpha, beta, ply, q_depth)
 
 
 class TestPythonSearchEngine:
@@ -134,7 +154,9 @@ class TestPythonSearchEngine:
         assert engine.null_move_calls == 0
 
     def test_null_move_round_trip_restores_position_state(self) -> None:
-        pos = position_from_fen("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1")
+        pos = position_from_fen(
+            "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
+        )
         engine = PythonSearchEngine()
 
         initial_key_stack = pos._key_stack.copy()
@@ -215,3 +237,15 @@ class TestPythonSearchEngine:
         engine = PythonSearchEngine()
 
         assert engine._is_draw(pos)
+
+    def test_quiescence_depth_cap_stops_recursive_expansion(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        pos = position_from_fen("4k3/8/8/8/8/4p3/3P4/4K3 w - - 0 1")
+        engine = _QuiescenceTrackingEngine()
+
+        monkeypatch.setattr(pysearch, "_QUIESCENCE_MAX_DEPTH", 0)
+
+        _ = engine._quiescence(pos, -1_000_000, 1_000_000, ply=0)
+
+        assert engine.q_calls == 1

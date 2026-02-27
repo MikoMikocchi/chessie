@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import pytest
 from PyQt6.QtCore import QPointF
 
@@ -191,14 +193,14 @@ def test_pos_to_square_outside_board_returns_none() -> None:
 def test_animate_and_sync_uses_animation_path_with_fake_animation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    callbacks: list[object] = []
+    callbacks: list[Callable[[], None]] = []
 
     class _Signal:
-        def connect(self, cb):
+        def connect(self, cb: Callable[[], None]) -> None:
             callbacks.append(cb)
 
     class _FakeAnim:
-        def __init__(self, *_args, **_kwargs) -> None:
+        def __init__(self, *_args: object, **_kwargs: object) -> None:
             self.finished = _Signal()
 
         def setDuration(self, _v: int) -> None:
@@ -237,14 +239,14 @@ def test_animate_and_sync_uses_animation_path_with_fake_animation(
 def test_animate_and_sync_handles_castling_rook_reposition(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    callbacks: list[object] = []
+    callbacks: list[Callable[[], None]] = []
 
     class _Signal:
-        def connect(self, cb):
+        def connect(self, cb: Callable[[], None]) -> None:
             callbacks.append(cb)
 
     class _FakeAnim:
-        def __init__(self, *_args, **_kwargs) -> None:
+        def __init__(self, *_args: object, **_kwargs: object) -> None:
             self.finished = _Signal()
 
         def setDuration(self, _v: int) -> None:
@@ -286,14 +288,14 @@ def test_animate_and_sync_handles_castling_rook_reposition(
 def test_animate_and_sync_handles_en_passant_capture(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    callbacks: list[object] = []
+    callbacks: list[Callable[[], None]] = []
 
     class _Signal:
-        def connect(self, cb):
+        def connect(self, cb: Callable[[], None]) -> None:
             callbacks.append(cb)
 
     class _FakeAnim:
-        def __init__(self, *_args, **_kwargs) -> None:
+        def __init__(self, *_args: object, **_kwargs: object) -> None:
             self.finished = _Signal()
 
         def setDuration(self, _v: int) -> None:

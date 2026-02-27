@@ -171,8 +171,12 @@ class TestSAN:
 
     def test_move_to_san_castling_both_sides(self) -> None:
         pos = position_from_fen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1")
-        king_side = Move(parse_square("e1"), parse_square("g1"), MoveFlag.CASTLE_KINGSIDE)
-        queen_side = Move(parse_square("e1"), parse_square("c1"), MoveFlag.CASTLE_QUEENSIDE)
+        king_side = Move(
+            parse_square("e1"), parse_square("g1"), MoveFlag.CASTLE_KINGSIDE
+        )
+        queen_side = Move(
+            parse_square("e1"), parse_square("c1"), MoveFlag.CASTLE_QUEENSIDE
+        )
         assert move_to_san(pos, king_side) == "O-O"
         assert move_to_san(pos, queen_side) == "O-O-O"
 
@@ -182,7 +186,9 @@ class TestSAN:
         assert move_to_san(pos_capture, capture) == "dxe5"
 
         pos_promo = position_from_fen("7k/6P1/8/8/8/8/8/4K3 w - - 0 1")
-        promo = Move(parse_square("g7"), parse_square("g8"), MoveFlag.PROMOTION, PieceType.QUEEN)
+        promo = Move(
+            parse_square("g7"), parse_square("g8"), MoveFlag.PROMOTION, PieceType.QUEEN
+        )
         assert move_to_san(pos_promo, promo) == "g8=Q+"
 
     def test_parse_san_file_and_rank_disambiguation(self) -> None:

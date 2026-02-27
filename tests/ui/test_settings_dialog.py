@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from chessie.ui.dialogs.settings_dialog import (
     AppSettings,
     SettingsDialog,
     _BoardPage,
     _BoardThemePreviewWidget,
+    _EnginePage,
+    _GeneralPage,
     _MoveNotationPreviewWidget,
+    _SoundPage,
 )
 
 
@@ -46,16 +51,19 @@ def test_dialog_retranslate_keeps_sidebar_items_populated() -> None:
     dialog = SettingsDialog(AppSettings())
     dialog.retranslate_ui()
     assert dialog._sidebar.count() == len(dialog._pages)
-    assert all(dialog._sidebar.item(i).text() for i in range(dialog._sidebar.count()))
+    for i in range(dialog._sidebar.count()):
+        item = dialog._sidebar.item(i)
+        assert item is not None
+        assert item.text()
 
 
 def test_dialog_accept_applies_general_sound_engine_pages() -> None:
     settings = AppSettings()
     dialog = SettingsDialog(settings)
 
-    general_page = dialog._pages[0]
-    sound_page = dialog._pages[2]
-    engine_page = dialog._pages[3]
+    general_page = cast(_GeneralPage, dialog._pages[0])
+    sound_page = cast(_SoundPage, dialog._pages[2])
+    engine_page = cast(_EnginePage, dialog._pages[3])
 
     general_page._lang_combo.setCurrentText("Russian")
     sound_page._enabled_check.setChecked(False)

@@ -27,6 +27,7 @@ _NULL_MOVE_MIN_DEPTH = 3
 _NULL_MOVE_REDUCTION = 2
 _LMR_MIN_DEPTH = 4
 _LMR_MIN_MOVE_INDEX = 3
+_QUIESCENCE_MAX_DEPTH = 16
 
 _PIECE_VALUES: dict[PieceType, int] = {
     PieceType.PAWN: 100,
@@ -251,7 +252,9 @@ class PythonSearchEngine(IEngine):
             )
 
             position.make_move(move)
-            if can_try_lmr and not MoveGenerator(position).is_in_check(position.side_to_move):
+            if can_try_lmr and not MoveGenerator(position).is_in_check(
+                position.side_to_move
+            ):
                 reduction = self._lmr_reduction(depth, move_index)
                 reduced_depth = max(0, depth - 1 - reduction)
                 score = -self._negamax(
@@ -297,6 +300,7 @@ class PythonSearchEngine(IEngine):
         alpha: int,
         beta: int,
         ply: int,
+        q_depth: int = 0,
     ) -> int:
         if self._should_stop():
             return self._static_eval(position)
@@ -315,6 +319,15 @@ class PythonSearchEngine(IEngine):
                 return -_MATE_SCORE + ply
             return 0
 
+        # Hard cap to avoid unbounded recursive capture/check sequences.
+        if q_depth >= _QUIESCENCE_MAX_DEPTH:
+            if in_check:
+                return self._static_eval(position)
+            stand_pat = self._static_eval(position)
+            if stand_pat >= beta:
+                return beta
+            return max(alpha, stand_pat)
+
         if not in_check:
             stand_pat = self._static_eval(position)
             if stand_pat >= beta:
@@ -330,7 +343,7 @@ class PythonSearchEngine(IEngine):
 
         for move in self._order_moves(position, candidates, ply=ply):
             position.make_move(move)
-            score = -self._quiescence(position, -beta, -alpha, ply + 1)
+            score = -self._quiescence(position, -beta, -alpha, ply + 1, q_depth + 1)
             position.unmake_move(move)
 
             if score >= beta:
@@ -422,7 +435,9 @@ class PythonSearchEngine(IEngine):
             return
         if len(self._tt) >= self._tt_max_entries and key not in self._tt:
             self._tt.clear()
-        self._tt[key] = _TTEntry(depth=depth, score=score, bound=bound, best_move=best_move)
+        self._tt[key] = _TTEntry(
+            depth=depth, score=score, bound=bound, best_move=best_move
+        )
 
     def _is_noisy_move(self, position: Position, move: Move) -> bool:
         if move.flag in (MoveFlag.EN_PASSANT, MoveFlag.PROMOTION):
@@ -514,7 +529,9 @@ class PythonSearchEngine(IEngine):
 
     def _reset_move_order_heuristics(self) -> None:
         self._killer_moves = [[None, None] for _ in range(_MAX_KILLER_PLY)]
-        self._history_scores = [[[0 for _ in range(64)] for _ in range(64)] for _ in range(2)]
+        self._history_scores = [
+            [[0 for _ in range(64)] for _ in range(64)] for _ in range(2)
+        ]
 
     def _record_killer(self, move: Move, ply: int) -> None:
         if ply < 0 or ply >= len(self._killer_moves):
