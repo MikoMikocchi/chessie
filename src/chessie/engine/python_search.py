@@ -78,7 +78,7 @@ class PythonSearchEngine(IEngine):
         self._last_yield_nodes = 0
         self._deadline: float | None = None
         self._cancel_check: CancelCheck = _never_cancelled
-        self._tt: dict[object, _TTEntry] = {}
+        self._tt: dict[int, _TTEntry] = {}
         self._tt_max_entries = 200_000
         self._killer_moves: list[list[Move | None]] = [
             [None, None] for _ in range(_MAX_KILLER_PLY)
@@ -424,7 +424,7 @@ class PythonSearchEngine(IEngine):
 
     def _store_tt(
         self,
-        key: object,
+        key: int,
         depth: int,
         score: int,
         bound: int,
@@ -498,11 +498,12 @@ class PythonSearchEngine(IEngine):
             halfmove_clock=position.halfmove_clock,
             fullmove_number=position.fullmove_number,
         )
-        position.en_passant = None
+        position._set_en_passant(None)
         position.halfmove_clock += 1
         if position.side_to_move == Color.BLACK:
             position.fullmove_number += 1
         position.side_to_move = position.side_to_move.opposite
+        position._toggle_side_hash()
 
         key = position._position_key()
         position._key_stack.append(key)
@@ -521,6 +522,7 @@ class PythonSearchEngine(IEngine):
         position.en_passant = state.en_passant
         position.halfmove_clock = state.halfmove_clock
         position.fullmove_number = state.fullmove_number
+        position._zobrist_hash = position._key_stack[-1]
 
     def _is_quiet_move(self, position: Position, move: Move) -> bool:
         if move.flag in (MoveFlag.PROMOTION, MoveFlag.EN_PASSANT):

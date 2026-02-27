@@ -148,3 +148,62 @@ class TestRepetitionTracking:
             pos.unmake_move(m)
 
         assert pos.repetition_count() == 1
+
+
+class TestZobristHashing:
+    def test_hash_matches_recomputed_position_after_legal_moves(self) -> None:
+        pos = position_from_fen(STARTING_FEN)
+        initial_key = pos._key_stack[-1]
+        initial_recomputed = position_from_fen(position_to_fen(pos))._key_stack[-1]
+        assert initial_key == initial_recomputed
+
+        gen = MoveGenerator(pos)
+        for move in gen.generate_legal_moves():
+            pos.make_move(move)
+            recomputed = position_from_fen(position_to_fen(pos))._key_stack[-1]
+            assert pos._key_stack[-1] == recomputed
+            pos.unmake_move(move)
+
+        assert pos._key_stack[-1] == initial_key
+
+    @pytest.mark.parametrize(
+        ("fen", "move"),
+        [
+            (
+                "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1",
+                Move(E1, parse_square("g1"), MoveFlag.CASTLE_KINGSIDE),
+            ),
+            (
+                "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1",
+                Move(E1, parse_square("c1"), MoveFlag.CASTLE_QUEENSIDE),
+            ),
+            (
+                "7k/8/8/3pP3/8/8/8/4K3 w - d6 0 1",
+                Move(parse_square("e5"), parse_square("d6"), MoveFlag.EN_PASSANT),
+            ),
+            (
+                "4k3/4P3/8/8/8/8/8/4K3 w - - 0 1",
+                Move(
+                    parse_square("e7"),
+                    parse_square("e8"),
+                    MoveFlag.PROMOTION,
+                    PieceType.QUEEN,
+                ),
+            ),
+        ],
+    )
+    def test_hash_matches_recomputed_for_special_moves(
+        self, fen: str, move: Move
+    ) -> None:
+        pos = position_from_fen(fen)
+        key_before = pos._key_stack[-1]
+
+        pos.make_move(move)
+        key_after = pos._key_stack[-1]
+        recomputed_after = position_from_fen(position_to_fen(pos))._key_stack[-1]
+        assert key_after == recomputed_after
+
+        pos.unmake_move(move)
+        assert pos._key_stack[-1] == key_before
+        recomputed_before = position_from_fen(position_to_fen(pos))._key_stack[-1]
+        assert pos._key_stack[-1] == recomputed_before
