@@ -205,6 +205,10 @@ class IGameController(ABC):
         """Opponent accepts the draw offer."""
 
     @abstractmethod
+    def decline_draw(self) -> None:
+        """Decline an active draw offer."""
+
+    @abstractmethod
     def claim_draw(self, color: Color) -> bool:
         """Player claims draw by rule (50-move / threefold)."""
 
