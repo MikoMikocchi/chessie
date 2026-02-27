@@ -16,6 +16,7 @@ class EngineWorker(QObject):
 
     best_move_ready = pyqtSignal(int, object, int, int, int)
     search_cancelled = pyqtSignal(int)
+    search_no_move = pyqtSignal(int, int, int, int)
     search_error = pyqtSignal(int, str)
 
     __slots__ = ("_cancel_event", "_engine", "_limits")
@@ -54,6 +55,12 @@ class EngineWorker(QObject):
             return
 
         if result.best_move is None:
+            self.search_no_move.emit(
+                request_id,
+                result.score_cp,
+                result.depth,
+                result.nodes,
+            )
             return
 
         self.best_move_ready.emit(
@@ -64,10 +71,12 @@ class EngineWorker(QObject):
             result.nodes,
         )
 
+    @pyqtSlot()
     def cancel(self) -> None:
         """Request cancellation of the current search."""
         self._cancel_event.set()
 
+    @pyqtSlot(int, int)
     def set_limits(self, max_depth: int, time_limit_ms: int) -> None:
         """Update search limits (takes effect on the next search)."""
         self._limits = SearchLimits(max_depth=max_depth, time_limit_ms=time_limit_ms)
