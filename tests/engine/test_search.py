@@ -4,6 +4,7 @@ from chessie.core.enums import Color
 from chessie.core.move import Move
 from chessie.core.move_generator import MoveGenerator
 from chessie.core.notation import STARTING_FEN, position_from_fen
+from chessie.core.position import Position
 from chessie.core.rules import Rules
 from chessie.core.types import parse_square
 from chessie.engine import PythonSearchEngine, SearchLimits
@@ -17,6 +18,25 @@ class _NullTrackingEngine(PythonSearchEngine):
     def _make_null_move(self, position):
         self.null_move_calls += 1
         return super()._make_null_move(position)
+
+
+class _LmrTrackingEngine(PythonSearchEngine):
+    def __init__(self) -> None:
+        super().__init__()
+        self.lmr_calls = 0
+
+    def _lmr_reduction(self, depth: int, move_index: int) -> int:
+        self.lmr_calls += 1
+        return super()._lmr_reduction(depth, move_index)
+
+    def _can_apply_null_move(
+        self,
+        position: Position,
+        depth: int,
+        in_check: bool,
+        allow_null: bool,
+    ) -> bool:
+        return False
 
 
 class TestPythonSearchEngine:
@@ -136,3 +156,50 @@ class TestPythonSearchEngine:
         assert pos.fullmove_number == initial_fullmove
         assert pos._key_stack == initial_key_stack
         assert pos._key_counts == initial_key_counts
+
+    def test_uses_lmr_on_late_quiet_moves(self) -> None:
+        pos = position_from_fen(STARTING_FEN)
+        engine = _LmrTrackingEngine()
+
+        _ = engine.search(pos, SearchLimits(max_depth=5, time_limit_ms=None))
+
+        assert engine.lmr_calls > 0
+
+    def test_lmr_conditions_and_reduction_schedule(self) -> None:
+        engine = PythonSearchEngine()
+        quiet = Move(parse_square("e2"), parse_square("e4"))
+
+        assert not engine._can_try_lmr(
+            depth=3,
+            move_index=3,
+            in_check=False,
+            is_quiet=True,
+            move=quiet,
+            tt_move=None,
+        )
+        assert not engine._can_try_lmr(
+            depth=5,
+            move_index=1,
+            in_check=False,
+            is_quiet=True,
+            move=quiet,
+            tt_move=None,
+        )
+        assert not engine._can_try_lmr(
+            depth=5,
+            move_index=4,
+            in_check=False,
+            is_quiet=False,
+            move=quiet,
+            tt_move=None,
+        )
+        assert engine._can_try_lmr(
+            depth=5,
+            move_index=4,
+            in_check=False,
+            is_quiet=True,
+            move=quiet,
+            tt_move=None,
+        )
+        assert engine._lmr_reduction(depth=5, move_index=4) == 1
+        assert engine._lmr_reduction(depth=8, move_index=8) == 2

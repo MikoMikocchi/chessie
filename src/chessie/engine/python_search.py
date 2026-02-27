@@ -25,6 +25,8 @@ _HISTORY_BONUS_FACTOR = 32
 _HISTORY_MAX_SCORE = 8_000
 _NULL_MOVE_MIN_DEPTH = 3
 _NULL_MOVE_REDUCTION = 2
+_LMR_MIN_DEPTH = 4
+_LMR_MIN_MOVE_INDEX = 3
 
 _PIECE_VALUES: dict[PieceType, int] = {
     PieceType.PAWN: 100,
@@ -237,9 +239,32 @@ class PythonSearchEngine(IEngine):
         best_move: Move | None = None
         side_to_move = position.side_to_move
 
-        for move in ordered:
+        for move_index, move in enumerate(ordered):
+            is_quiet = self._is_quiet_move(position, move)
+            can_try_lmr = self._can_try_lmr(
+                depth=depth,
+                move_index=move_index,
+                in_check=in_check,
+                is_quiet=is_quiet,
+                move=move,
+                tt_move=tt_move,
+            )
+
             position.make_move(move)
-            score = -self._negamax(position, depth - 1, -beta, -alpha, ply + 1)
+            if can_try_lmr and not MoveGenerator(position).is_in_check(position.side_to_move):
+                reduction = self._lmr_reduction(depth, move_index)
+                reduced_depth = max(0, depth - 1 - reduction)
+                score = -self._negamax(
+                    position,
+                    reduced_depth,
+                    -alpha - 1,
+                    -alpha,
+                    ply + 1,
+                )
+                if score > alpha:
+                    score = -self._negamax(position, depth - 1, -beta, -alpha, ply + 1)
+            else:
+                score = -self._negamax(position, depth - 1, -beta, -alpha, ply + 1)
             position.unmake_move(move)
 
             if score > best_score:
@@ -248,7 +273,7 @@ class PythonSearchEngine(IEngine):
             if score > alpha:
                 alpha = score
             if alpha >= beta:
-                if self._is_quiet_move(position, move):
+                if is_quiet:
                     self._record_killer(move, ply)
                     self._update_history(side_to_move, move, depth)
                 break
@@ -409,6 +434,31 @@ class PythonSearchEngine(IEngine):
         if move.flag in (MoveFlag.EN_PASSANT, MoveFlag.PROMOTION):
             return True
         return position.board[move.to_sq] is not None
+
+    def _can_try_lmr(
+        self,
+        depth: int,
+        move_index: int,
+        in_check: bool,
+        is_quiet: bool,
+        move: Move,
+        tt_move: Move | None,
+    ) -> bool:
+        if in_check:
+            return False
+        if depth < _LMR_MIN_DEPTH:
+            return False
+        if move_index < _LMR_MIN_MOVE_INDEX:
+            return False
+        if not is_quiet:
+            return False
+        return tt_move is None or move != tt_move
+
+    def _lmr_reduction(self, depth: int, move_index: int) -> int:
+        reduction = 1
+        if depth >= 8 and move_index >= 8:
+            reduction += 1
+        return reduction
 
     def _can_apply_null_move(
         self,
