@@ -147,6 +147,55 @@ class TestSAN:
             parsed = parse_san(pos, san)
             assert parsed == move, f"Roundtrip failed for {san}: {move} ≠ {parsed}"
 
+    def test_parse_san_zero_castling_notation(self) -> None:
+        pos = position_from_fen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1")
+        move = parse_san(pos, "0-0")
+        assert move.flag == MoveFlag.CASTLE_KINGSIDE
+
+    def test_move_to_san_knight_disambiguation_file(self) -> None:
+        pos = position_from_fen("7k/8/8/8/8/8/8/K1N3N1 w - - 0 1")
+        move = Move(parse_square("c1"), parse_square("e2"))
+        assert move_to_san(pos, move) == "Nce2"
+
+    def test_parse_san_ambiguous_knight_raises(self) -> None:
+        pos = position_from_fen("7k/8/8/8/8/8/8/K1N3N1 w - - 0 1")
+        with pytest.raises(ValueError, match="Ambiguous"):
+            parse_san(pos, "Ne2")
+
+    def test_parse_san_promotion_with_check_suffix(self) -> None:
+        pos = position_from_fen("7k/6P1/8/8/8/8/8/4K3 w - - 0 1")
+        move = parse_san(pos, "g8=Q+")
+        assert move.to_sq == parse_square("g8")
+        assert move.flag == MoveFlag.PROMOTION
+        assert move.promotion == PieceType.QUEEN
+
+    def test_move_to_san_castling_both_sides(self) -> None:
+        pos = position_from_fen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1")
+        king_side = Move(parse_square("e1"), parse_square("g1"), MoveFlag.CASTLE_KINGSIDE)
+        queen_side = Move(parse_square("e1"), parse_square("c1"), MoveFlag.CASTLE_QUEENSIDE)
+        assert move_to_san(pos, king_side) == "O-O"
+        assert move_to_san(pos, queen_side) == "O-O-O"
+
+    def test_move_to_san_pawn_capture_and_promotion(self) -> None:
+        pos_capture = position_from_fen("7k/8/8/4p3/3P4/8/8/4K3 w - - 0 1")
+        capture = Move(parse_square("d4"), parse_square("e5"))
+        assert move_to_san(pos_capture, capture) == "dxe5"
+
+        pos_promo = position_from_fen("7k/6P1/8/8/8/8/8/4K3 w - - 0 1")
+        promo = Move(parse_square("g7"), parse_square("g8"), MoveFlag.PROMOTION, PieceType.QUEEN)
+        assert move_to_san(pos_promo, promo) == "g8=Q+"
+
+    def test_parse_san_file_and_rank_disambiguation(self) -> None:
+        pos = position_from_fen("7k/8/8/8/8/8/8/K1N3N1 w - - 0 1")
+        move = parse_san(pos, "Nce2")
+        assert move.from_sq == parse_square("c1")
+        assert move.to_sq == parse_square("e2")
+
+        pos_rank = position_from_fen("7k/8/8/8/8/8/R7/4R2K w - - 0 1")
+        move_rank = parse_san(pos_rank, "R1e2")
+        assert move_rank.from_sq == parse_square("e1")
+        assert move_rank.to_sq == parse_square("e2")
+
 
 class TestPGN:
     def test_build_and_parse_roundtrip(self) -> None:
