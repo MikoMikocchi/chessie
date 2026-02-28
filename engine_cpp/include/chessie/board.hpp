@@ -17,7 +17,7 @@ namespace chessie {
 /// aggregate occupancy bitboards, and a 64-element mailbox
 /// for O(1) piece-at-square lookups.
 class Board {
-public:
+   public:
     Board() noexcept { clear(); }
 
     // ── Piece placement ─────────────────────────────────────────────────
@@ -72,9 +72,7 @@ public:
     }
 
     /// Bitboard of all pieces of a given color.
-    [[nodiscard]] Bitboard occupied(Color c) const noexcept {
-        return occupied_[color_index(c)];
-    }
+    [[nodiscard]] Bitboard occupied(Color c) const noexcept { return occupied_[color_index(c)]; }
 
     /// Bitboard of all pieces on the board.
     [[nodiscard]] Bitboard occupied_all() const noexcept { return occupied_all_; }
@@ -103,7 +101,8 @@ public:
     [[nodiscard]] bool operator==(const Board& other) const noexcept {
         for (int c = 0; c < 2; ++c) {
             for (int p = 0; p < kNumPieceTypes; ++p) {
-                if (pieces_[c][p] != other.pieces_[c][p]) return false;
+                if (pieces_[c][p] != other.pieces_[c][p])
+                    return false;
             }
         }
         return true;
@@ -114,9 +113,9 @@ public:
     /// Standard starting position.
     [[nodiscard]] static Board initial() noexcept;
 
-private:
-    Bitboard pieces_[2][6]{};   // [color_index][piece_index]
-    Bitboard occupied_[2]{};    // [color_index]
+   private:
+    Bitboard pieces_[2][6]{};  // [color_index][piece_index]
+    Bitboard occupied_[2]{};   // [color_index]
     Bitboard occupied_all_{};
     Piece mailbox_[64]{};
 };

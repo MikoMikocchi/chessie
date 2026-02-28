@@ -19,8 +19,8 @@ Board Board::initial() noexcept {
 
     // Back ranks
     constexpr PieceType kBackRank[] = {
-        PieceType::Rook,   PieceType::Knight, PieceType::Bishop, PieceType::Queen,
-        PieceType::King,   PieceType::Bishop, PieceType::Knight, PieceType::Rook,
+        PieceType::Rook, PieceType::Knight, PieceType::Bishop, PieceType::Queen,
+        PieceType::King, PieceType::Bishop, PieceType::Knight, PieceType::Rook,
     };
 
     for (int f = 0; f < 8; ++f) {

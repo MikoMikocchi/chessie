@@ -38,7 +38,8 @@ Bitboard ray_attacks(Square sq, Bitboard occupancy, int df, int dr) {
     while (f >= 0 && f <= 7 && r >= 0 && r <= 7) {
         Square s = make_square(f, r);
         set_bit(attacks, s);
-        if (test_bit(occupancy, s)) break;
+        if (test_bit(occupancy, s))
+            break;
         f += df;
         r += dr;
     }
@@ -129,7 +130,8 @@ std::uint64_t find_magic(Square /*sq*/, int bits, Bitboard mask, const std::vect
         std::uint64_t magic = rng.sparse();
 
         // Quick reject: top bits of mask*magic should have enough set bits
-        if (popcount(static_cast<Bitboard>((mask * magic) & 0xFF00000000000000ULL)) < 6) continue;
+        if (popcount(static_cast<Bitboard>((mask * magic) & 0xFF00000000000000ULL)) < 6)
+            continue;
 
         // Reset
         std::fill(filled.begin(), filled.end(), false);
@@ -147,7 +149,8 @@ std::uint64_t find_magic(Square /*sq*/, int bits, Bitboard mask, const std::vect
             }
             // If filled and same attacks — constructive collision, fine
         }
-        if (ok) return magic;
+        if (ok)
+            return magic;
     }
 
     // Should never happen for valid chess positions
@@ -193,7 +196,8 @@ void init_piece(MagicEntry* entries, std::vector<Bitboard>& table, bool is_rook,
 // ── Public API ──────────────────────────────────────────────────────────────
 
 void init() {
-    if (g_initialized) return;
+    if (g_initialized)
+        return;
     Rng rng(0x12345678ABCDEF01ULL);
     init_piece(g_bishop_entries, g_bishop_table, false, rng);
     init_piece(g_rook_entries, g_rook_table, true, rng);

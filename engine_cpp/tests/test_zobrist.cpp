@@ -1,7 +1,6 @@
 #include <chessie/zobrist.hpp>
 
 #include <gtest/gtest.h>
-
 #include <set>
 
 using namespace chessie;
@@ -13,17 +12,17 @@ TEST(Zobrist, PieceKeysNonZero) {
     for (int c = 0; c < 2; ++c) {
         for (int pt = 0; pt < 6; ++pt) {
             for (int sq = 0; sq < 64; ++sq) {
-                auto key = zobrist::piece_key(static_cast<Color>(c),
-                                              static_cast<PieceType>(pt + 1),
+                auto key = zobrist::piece_key(static_cast<Color>(c), static_cast<PieceType>(pt + 1),
                                               static_cast<Square>(sq));
-                EXPECT_NE(key, 0ULL)
-                    << "color=" << c << " pt=" << pt + 1 << " sq=" << sq;
+                EXPECT_NE(key, 0ULL) << "color=" << c << " pt=" << pt + 1 << " sq=" << sq;
             }
         }
     }
 }
 
-TEST(Zobrist, SideKeyNonZero) { EXPECT_NE(zobrist::side_to_move_key(), 0ULL); }
+TEST(Zobrist, SideKeyNonZero) {
+    EXPECT_NE(zobrist::side_to_move_key(), 0ULL);
+}
 
 TEST(Zobrist, CastlingKeysNonZeroExceptIndex0) {
     // Index 0 (no castling rights) is fine to be anything, but 1..15 should be non-zero
@@ -45,8 +44,7 @@ TEST(Zobrist, PieceKeysUnique) {
     for (int c = 0; c < 2; ++c) {
         for (int pt = 0; pt < 6; ++pt) {
             for (int sq = 0; sq < 64; ++sq) {
-                auto key = zobrist::piece_key(static_cast<Color>(c),
-                                              static_cast<PieceType>(pt + 1),
+                auto key = zobrist::piece_key(static_cast<Color>(c), static_cast<PieceType>(pt + 1),
                                               static_cast<Square>(sq));
                 auto [_, inserted] = keys.insert(key);
                 EXPECT_TRUE(inserted)

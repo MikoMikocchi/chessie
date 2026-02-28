@@ -49,8 +49,7 @@ TEST(Board, InitialEmptySquares) {
     for (int r = 2; r <= 5; ++r) {
         for (int f = 0; f < 8; ++f) {
             Square sq = make_square(f, r);
-            EXPECT_EQ(b.piece_at(sq), kNoPiece)
-                << "Expected empty at " << square_name(sq);
+            EXPECT_EQ(b.piece_at(sq), kNoPiece) << "Expected empty at " << square_name(sq);
         }
     }
 }

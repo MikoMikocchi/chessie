@@ -47,8 +47,7 @@ constexpr ZobristKeys compute_keys() noexcept {
     for (int color = 0; color < 2; ++color) {
         for (int ptype = 0; ptype < 6; ++ptype) {
             for (int sq = 0; sq < 64; ++sq) {
-                keys.piece_keys[color][ptype][sq] =
-                    nth_key(color * 384 + ptype * 64 + sq);
+                keys.piece_keys[color][ptype][sq] = nth_key(color * 384 + ptype * 64 + sq);
             }
         }
     }
@@ -79,8 +78,7 @@ inline constexpr ZobristKeys kKeys = compute_keys();
 /// @param color  Piece color.
 /// @param pt     Piece type (Pawn..King).
 /// @param sq     Square index (0-63).
-[[nodiscard]] constexpr std::uint64_t piece_key(Color color, PieceType pt,
-                                                Square sq) noexcept {
+[[nodiscard]] constexpr std::uint64_t piece_key(Color color, PieceType pt, Square sq) noexcept {
     return detail::kKeys.piece_keys[color_index(color)][piece_index(pt)][sq];
 }
 
