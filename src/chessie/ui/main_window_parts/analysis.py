@@ -17,6 +17,22 @@ def on_analyze_game(host: Any, *, message_box_cls: type[Any]) -> None:
         host._status_label.setText(t().status_analysis_no_moves)
         return
 
+    # Re-use cached report if it matches the current game exactly.
+    cached: GameAnalysisReport | None = host._analysis_report
+    if (
+        cached is not None
+        and cached.start_fen == state.start_fen
+        and cached.total_plies == len(state.move_history)
+    ):
+        _enter_analysis_mode(host, cached)
+        host._status_label.setText(
+            t().status_analysis_done.format(
+                white_avg=f"{cached.white.avg_cp_loss:.1f}",
+                black_avg=f"{cached.black.avg_cp_loss:.1f}",
+            )
+        )
+        return
+
     started = host._analysis_session.start_analysis(
         start_fen=state.start_fen,
         move_history=state.move_history,
@@ -77,9 +93,14 @@ def on_analysis_cancelled(host: Any) -> None:
 
 
 def on_exit_analysis(host: Any) -> None:
-    """Leave analysis mode and restore normal game UI."""
+    """Leave analysis mode and restore normal game UI.
+
+    The analysis report is intentionally kept in ``host._analysis_report`` so
+    that re-clicking "Analyze Game" for the same position shows the result
+    immediately without re-running the engine.
+    """
     host._analysis_mode = False
-    host._analysis_report = None
+    # _analysis_report is preserved for cache re-use (not cleared here).
 
     # Hide analysis widgets
     host._eval_graph.hide()

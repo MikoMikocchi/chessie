@@ -157,6 +157,7 @@ class TestMainWindowAnalysisActions:
                 _status_label=SimpleNamespace(
                     setText=lambda text: status_updates.append(text)
                 ),
+                _analysis_report=None,
             ),
         )
 
@@ -252,7 +253,8 @@ class TestMainWindowAnalysisActions:
         analysis_part.on_exit_analysis(window)
 
         assert window._analysis_mode is False
-        assert window._analysis_report is None
+        # Report is intentionally preserved for cache re-use on next "Analyze" click.
+        assert window._analysis_report is not None
         assert eval_graph.visible is False
         assert analysis_panel.visible is False
         assert exit_btn.visible is False
