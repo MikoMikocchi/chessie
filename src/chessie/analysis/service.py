@@ -12,7 +12,7 @@ from chessie.analysis.models import (
     MoveJudgment,
     SideAnalysisSummary,
 )
-from chessie.core.enums import Color
+from chessie.core.enums import Color, MoveFlag
 from chessie.core.notation import move_to_san, position_from_fen
 from chessie.engine import PythonSearchEngine, SearchLimits
 from chessie.engine.search import CancelCheck, IEngine
@@ -76,7 +76,12 @@ class GameAnalyzer:
         if total > 0:
             if cancelled():
                 raise AnalysisCancelled
-            before_result = self._engine.search(position.copy(), limits, cancelled)
+            before_limits = _analysis_limits_for_position(limits, previous_move=None)
+            before_result = self._engine.search(
+                position.copy(),
+                before_limits,
+                cancelled,
+            )
 
         for ply, record in enumerate(history):
             if cancelled():
@@ -91,7 +96,8 @@ class GameAnalyzer:
             position.make_move(record.move)
             if cancelled():
                 raise AnalysisCancelled
-            after_result = self._engine.search(position.copy(), limits, cancelled)
+            after_limits = _analysis_limits_for_position(limits, previous_move=record)
+            after_result = self._engine.search(position.copy(), after_limits, cancelled)
             after_white_cp = _to_white_cp(after_result.score_cp, position.side_to_move)
 
             best_for_mover = best_white_cp if mover == Color.WHITE else -best_white_cp
@@ -145,6 +151,38 @@ class GameAnalyzer:
 
 def _to_white_cp(score_cp: int, side_to_move: Color) -> int:
     return score_cp if side_to_move == Color.WHITE else -score_cp
+
+
+def _analysis_limits_for_position(
+    base_limits: SearchLimits,
+    *,
+    previous_move: MoveRecord | None,
+) -> SearchLimits:
+    """Scale analysis time for the current position based on tactical cues."""
+    base_time_ms = base_limits.time_limit_ms
+    if base_time_ms is None:
+        return base_limits
+
+    factor = 0.8 if previous_move is None else 0.65
+    if previous_move is not None:
+        if previous_move.was_capture:
+            factor += 0.35
+        if previous_move.was_check:
+            factor += 0.35
+        flag = previous_move.move.flag
+        if flag in (MoveFlag.PROMOTION, MoveFlag.EN_PASSANT):
+            factor += 0.25
+        elif flag in (MoveFlag.CASTLE_KINGSIDE, MoveFlag.CASTLE_QUEENSIDE):
+            factor += 0.1
+
+    factor = max(0.5, min(1.8, factor))
+    scaled_time_ms = max(25, int(round(base_time_ms * factor)))
+    if scaled_time_ms == base_time_ms:
+        return base_limits
+    return SearchLimits(
+        max_depth=base_limits.max_depth,
+        time_limit_ms=scaled_time_ms,
+    )
 
 
 def _classify_cp_loss(

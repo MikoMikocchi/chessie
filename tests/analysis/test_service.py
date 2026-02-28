@@ -14,6 +14,7 @@ from chessie.game.state import GameState, MoveRecord
 class _StubEngine:
     def __init__(self, results: list[SearchResult]) -> None:
         self._results = list(results)
+        self.seen_limits: list[SearchLimits] = []
 
     def search(
         self,
@@ -21,6 +22,7 @@ class _StubEngine:
         _limits: SearchLimits,
         _is_cancelled: object | None = None,
     ) -> SearchResult:
+        self.seen_limits.append(_limits)
         if not self._results:
             raise AssertionError("No more stubbed engine results")
         return self._results.pop(0)
@@ -88,3 +90,24 @@ def test_analyze_game_honors_cancel_callback() -> None:
             limits=SearchLimits(max_depth=2, time_limit_ms=None),
             is_cancelled=lambda: True,
         )
+
+
+def test_analyze_game_scales_time_limit_per_position() -> None:
+    start_fen, history = _sample_history()
+    engine = _StubEngine(
+        [
+            SearchResult(Move(parse_square("d2"), parse_square("d4")), 10, 4, 100),
+            SearchResult(Move(parse_square("c7"), parse_square("c5")), 8, 4, 100),
+            SearchResult(None, 6, 4, 100),
+        ]
+    )
+    analyzer = GameAnalyzer(engine=engine)
+
+    _ = analyzer.analyze_game(
+        start_fen=start_fen,
+        move_history=history,
+        limits=SearchLimits(max_depth=4, time_limit_ms=200),
+    )
+
+    assert [limits.max_depth for limits in engine.seen_limits] == [4, 4, 4]
+    assert [limits.time_limit_ms for limits in engine.seen_limits] == [160, 130, 130]
