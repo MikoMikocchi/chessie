@@ -33,11 +33,32 @@ def on_analyze_game(host: Any, *, message_box_cls: type[Any]) -> None:
         )
         return
 
+    analysis_depth = max(
+        1,
+        int(
+            getattr(
+                host._settings,
+                "analysis_depth",
+                getattr(host._settings, "engine_depth", 4),
+            )
+        ),
+    )
+    analysis_time_ms = max(
+        50,
+        int(
+            getattr(
+                host._settings,
+                "analysis_time_ms",
+                getattr(host._settings, "engine_time_ms", 900),
+            )
+        ),
+    )
+
     started = host._analysis_session.start_analysis(
         start_fen=state.start_fen,
         move_history=state.move_history,
-        max_depth=max(1, host._settings.engine_depth),
-        time_limit_ms=max(50, host._settings.engine_time_ms),
+        max_depth=analysis_depth,
+        time_limit_ms=analysis_time_ms,
     )
     if not started:
         host._status_label.setText(t().status_analysis_failed.format(msg="not started"))

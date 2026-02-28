@@ -128,7 +128,12 @@ class TestMainWindowAnalysisActions:
                     state=SimpleNamespace(move_history=[], start_fen="start-fen")
                 ),
                 _analysis_session=_AnalysisSessionStub(),
-                _settings=SimpleNamespace(engine_depth=4, engine_time_ms=900),
+                _settings=SimpleNamespace(
+                    engine_depth=4,
+                    engine_time_ms=900,
+                    analysis_depth=4,
+                    analysis_time_ms=200,
+                ),
                 _act_analyze_game=_ActionStub(),
                 _status_label=SimpleNamespace(
                     setText=lambda text: status_updates.append(text)
@@ -152,7 +157,12 @@ class TestMainWindowAnalysisActions:
                     state=SimpleNamespace(move_history=history, start_fen="start-fen")
                 ),
                 _analysis_session=analysis_session,
-                _settings=SimpleNamespace(engine_depth=5, engine_time_ms=1_200),
+                _settings=SimpleNamespace(
+                    engine_depth=5,
+                    engine_time_ms=1_200,
+                    analysis_depth=3,
+                    analysis_time_ms=250,
+                ),
                 _act_analyze_game=_ActionStub(),
                 _status_label=SimpleNamespace(
                     setText=lambda text: status_updates.append(text)
@@ -164,6 +174,8 @@ class TestMainWindowAnalysisActions:
         MainWindow._on_analyze_game(window)
 
         assert analysis_session.calls
+        assert analysis_session.calls[0]["max_depth"] == 3
+        assert analysis_session.calls[0]["time_limit_ms"] == 250
         assert window._act_analyze_game.enabled is False
         assert status_updates[-1] == t().status_analysis_started.format(total=1)
 

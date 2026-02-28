@@ -39,8 +39,7 @@ def test_analyze_game_builds_move_metrics_and_side_summaries() -> None:
     engine = _StubEngine(
         [
             SearchResult(Move(parse_square("d2"), parse_square("d4")), 40, 4, 1_000),
-            SearchResult(None, 40, 4, 1_000),
-            SearchResult(Move(parse_square("c7"), parse_square("c5")), 30, 4, 1_100),
+            SearchResult(Move(parse_square("c7"), parse_square("c5")), 40, 4, 1_000),
             SearchResult(None, 0, 4, 1_100),
         ]
     )
@@ -67,14 +66,14 @@ def test_analyze_game_builds_move_metrics_and_side_summaries() -> None:
     second = report.moves[1]
     assert second.played_san == "e5"
     assert second.best_san == "c5"
-    assert second.cp_loss == 30
+    assert second.cp_loss == 40
     assert second.judgment == MoveJudgment.GOOD
 
     assert report.white.moves == 1
     assert report.white.avg_cp_loss == pytest.approx(80.0)
     assert report.white.inaccuracies == 1
     assert report.black.moves == 1
-    assert report.black.avg_cp_loss == pytest.approx(30.0)
+    assert report.black.avg_cp_loss == pytest.approx(40.0)
     assert report.critical_plies == (0, 1)
 
 

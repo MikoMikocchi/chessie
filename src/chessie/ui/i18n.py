@@ -127,6 +127,8 @@ class Strings:
     # Engine page
     settings_engine_depth: str
     settings_engine_time: str
+    settings_analysis_depth: str
+    settings_analysis_time: str
     settings_engine_depth_suffix: str
     settings_engine_time_suffix: str
     settings_engine_note: str
@@ -228,9 +230,11 @@ _EN = Strings(
     settings_sound_volume="Volume:",
     settings_engine_depth="Search depth:",
     settings_engine_time="Time limit per move:",
+    settings_analysis_depth="Analysis depth:",
+    settings_analysis_time="Analysis time per position:",
     settings_engine_depth_suffix=" ply",
     settings_engine_time_suffix=" ms",
-    settings_engine_note="Changes take effect from the next game.",
+    settings_engine_note="Engine changes apply from the next game. Analysis changes apply on the next analysis run.",
     analysis_title="Game Analysis",
     analysis_summary="White ACPL: {white_avg} (blunders: {white_blunders}) | Black ACPL: {black_avg} (blunders: {black_blunders})",
     analysis_hint_jump="Double-click a row to jump to that move on the board.",
@@ -325,9 +329,11 @@ _RU = Strings(
     settings_sound_volume="Громкость:",
     settings_engine_depth="Глубина поиска:",
     settings_engine_time="Лимит времени на ход:",
+    settings_analysis_depth="Глубина анализа:",
+    settings_analysis_time="Лимит времени на позицию:",
     settings_engine_depth_suffix=" пл.",
     settings_engine_time_suffix=" мс",
-    settings_engine_note="Изменения вступят в силу с начала следующей игры.",
+    settings_engine_note="Параметры движка применяются со следующей партии. Параметры анализа — при следующем запуске анализа.",
     analysis_title="Анализ партии",
     analysis_summary="ACPL белых: {white_avg} (грубых: {white_blunders}) | ACPL чёрных: {black_avg} (грубых: {black_blunders})",
     analysis_hint_jump="Двойной клик по строке — перейти к ходу на доске.",

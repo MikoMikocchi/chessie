@@ -72,17 +72,21 @@ class GameAnalyzer:
 
         analyses: list[MoveAnalysis] = []
         total = len(history)
+        before_result = None
+        if total > 0:
+            if cancelled():
+                raise AnalysisCancelled
+            before_result = self._engine.search(position.copy(), limits, cancelled)
 
         for ply, record in enumerate(history):
             if cancelled():
                 raise AnalysisCancelled
 
             mover = position.side_to_move
-            before_position = position.copy()
-            before_result = self._engine.search(before_position, limits, cancelled)
+            assert before_result is not None
             best_white_cp = _to_white_cp(before_result.score_cp, mover)
             best_move = before_result.best_move
-            best_san = move_to_san(before_position, best_move) if best_move else None
+            best_san = move_to_san(position, best_move) if best_move else None
 
             position.make_move(record.move)
             if cancelled():
@@ -113,6 +117,7 @@ class GameAnalyzer:
             )
             if on_progress is not None:
                 on_progress(ply + 1, total)
+            before_result = after_result
 
         white_summary = _build_side_summary(
             a for a in analyses if a.color == Color.WHITE

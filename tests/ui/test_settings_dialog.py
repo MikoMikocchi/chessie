@@ -70,6 +70,8 @@ def test_dialog_accept_applies_general_sound_engine_pages() -> None:
     sound_page._volume_slider.setValue(25)
     engine_page._depth_spin.setValue(7)
     engine_page._time_spin.setValue(1500)
+    engine_page._analysis_depth_spin.setValue(3)
+    engine_page._analysis_time_spin.setValue(250)
 
     dialog._on_accept()
 
@@ -78,6 +80,8 @@ def test_dialog_accept_applies_general_sound_engine_pages() -> None:
     assert settings.sound_volume == 25
     assert settings.engine_depth == 7
     assert settings.engine_time_ms == 1500
+    assert settings.analysis_depth == 3
+    assert settings.analysis_time_ms == 250
 
 
 def test_board_theme_preview_setter_and_paint_event() -> None:

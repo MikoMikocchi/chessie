@@ -53,6 +53,8 @@ class AppSettings:
     # Engine
     engine_depth: int = 4
     engine_time_ms: int = 900
+    analysis_depth: int = 4
+    analysis_time_ms: int = 200
 
 
 # ── Individual settings pages ────────────────────────────────────────────────
@@ -355,6 +357,19 @@ class _EnginePage(QWidget):
         self._time_spin.setValue(settings.engine_time_ms)
         self._form.addRow(self._time_label, self._time_spin)
 
+        self._analysis_depth_label = QLabel()
+        self._analysis_depth_spin = QSpinBox()
+        self._analysis_depth_spin.setRange(1, 10)
+        self._analysis_depth_spin.setValue(settings.analysis_depth)
+        self._form.addRow(self._analysis_depth_label, self._analysis_depth_spin)
+
+        self._analysis_time_label = QLabel()
+        self._analysis_time_spin = QSpinBox()
+        self._analysis_time_spin.setRange(50, 10_000)
+        self._analysis_time_spin.setSingleStep(50)
+        self._analysis_time_spin.setValue(settings.analysis_time_ms)
+        self._form.addRow(self._analysis_time_label, self._analysis_time_spin)
+
         self._note = QLabel()
         self._note.setWordWrap(True)
         self._note.setStyleSheet("color: #888; font-size: 11px;")
@@ -369,11 +384,17 @@ class _EnginePage(QWidget):
         self._depth_spin.setSuffix(s.settings_engine_depth_suffix)
         self._time_label.setText(s.settings_engine_time)
         self._time_spin.setSuffix(s.settings_engine_time_suffix)
+        self._analysis_depth_label.setText(s.settings_analysis_depth)
+        self._analysis_depth_spin.setSuffix(s.settings_engine_depth_suffix)
+        self._analysis_time_label.setText(s.settings_analysis_time)
+        self._analysis_time_spin.setSuffix(s.settings_engine_time_suffix)
         self._note.setText(s.settings_engine_note)
 
     def apply(self, settings: AppSettings) -> None:
         settings.engine_depth = self._depth_spin.value()
         settings.engine_time_ms = self._time_spin.value()
+        settings.analysis_depth = self._analysis_depth_spin.value()
+        settings.analysis_time_ms = self._analysis_time_spin.value()
 
 
 # ── Main dialog ──────────────────────────────────────────────────────────────
