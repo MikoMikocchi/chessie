@@ -1,9 +1,8 @@
 /// @file movegen.cpp
 /// Move generation implementation using bitboard techniques.
 
-#include <chessie/movegen.hpp>
-
 #include <chessie/magic.hpp>
+#include <chessie/movegen.hpp>
 
 namespace chessie::movegen {
 
@@ -156,15 +155,16 @@ void gen_castling(const Position& pos, MoveList& ml) {
     const int rank = (us == Color::White) ? 0 : 7;
 
     // Can't castle while in check
-    if (pos.is_square_attacked(king_sq, them)) return;
+    if (pos.is_square_attacked(king_sq, them))
+        return;
 
     // Kingside
     CastlingRights ks = (us == Color::White) ? kWhiteKingside : kBlackKingside;
     if (pos.castling() & ks) {
         Square f_sq = make_square(5, rank);
         Square g_sq = make_square(6, rank);
-        if (board.is_empty(f_sq) && board.is_empty(g_sq) &&
-            !pos.is_square_attacked(f_sq, them) && !pos.is_square_attacked(g_sq, them)) {
+        if (board.is_empty(f_sq) && board.is_empty(g_sq) && !pos.is_square_attacked(f_sq, them) &&
+            !pos.is_square_attacked(g_sq, them)) {
             ml.push({king_sq, g_sq, MoveFlag::CastleKingside});
         }
     }
@@ -280,8 +280,8 @@ MoveList captures(const Position& pos) {
     gen_pawn_captures(pos, ml);
 
     // Piece captures (only to enemy-occupied squares)
-    for (PieceType pt : {PieceType::Knight, PieceType::Bishop, PieceType::Rook,
-                         PieceType::Queen, PieceType::King}) {
+    for (PieceType pt : {PieceType::Knight, PieceType::Bishop, PieceType::Rook, PieceType::Queen,
+                         PieceType::King}) {
         Bitboard pieces = board.pieces(us, pt);
         while (pieces) {
             Square from = pop_lsb(pieces);
@@ -317,12 +317,14 @@ MoveList captures(const Position& pos) {
 }
 
 std::uint64_t perft(Position& pos, int depth) {
-    if (depth == 0) return 1;
+    if (depth == 0)
+        return 1;
 
     MoveList moves = legal(pos);
 
     // Bulk counting optimisation: at depth 1, just return number of legal moves.
-    if (depth == 1) return static_cast<std::uint64_t>(moves.size());
+    if (depth == 1)
+        return static_cast<std::uint64_t>(moves.size());
 
     std::uint64_t nodes = 0;
     for (const Move& m : moves) {

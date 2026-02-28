@@ -228,14 +228,13 @@ TEST_F(PositionTest, RookMoveRemovesOneRight) {
 
 TEST_F(PositionTest, CaptureOnRookSquareRemovesRight) {
     // Black rook on h8, white bishop captures it
-    Position pos =
-        Position::from_fen("r3k2r/pppppppp/6B1/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1");
+    Position pos = Position::from_fen("r3k2r/pppppppp/6B1/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1");
 
     // Bxh8 (captures black rook on kingside)
     Move m{G6, H8, MoveFlag::Normal, PieceType::None};
     pos.make_move(m);
 
-    EXPECT_EQ(pos.castling() & kBlackKingside, kCastlingNone);   // removed
+    EXPECT_EQ(pos.castling() & kBlackKingside, kCastlingNone);     // removed
     EXPECT_EQ(pos.castling() & kBlackQueenside, kBlackQueenside);  // preserved
 }
 
@@ -277,8 +276,8 @@ TEST_F(PositionTest, ZobristMakeUnmakeIdentity) {
 // ── Halfmove clock ──────────────────────────────────────────────────────────
 
 TEST_F(PositionTest, HalfmoveClockNonPawnNonCapture) {
-    Position pos = Position::from_fen(
-        "r1bqkbnr/pppppppp/2n5/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2");
+    Position pos =
+        Position::from_fen("r1bqkbnr/pppppppp/2n5/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2");
 
     EXPECT_EQ(pos.halfmove_clock(), 1);
 
@@ -289,8 +288,7 @@ TEST_F(PositionTest, HalfmoveClockNonPawnNonCapture) {
 }
 
 TEST_F(PositionTest, HalfmoveClockResetOnPawnMove) {
-    Position pos = Position::from_fen(
-        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 5 3");
+    Position pos = Position::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 5 3");
 
     Move m{E2, E4, MoveFlag::DoublePawn, PieceType::None};
     pos.make_move(m);
@@ -321,7 +319,8 @@ TEST_F(PositionTest, IsInCheckStarting) {
 
 TEST_F(PositionTest, IsInCheckScholar) {
     // White Qf7 checking Black king on e8
-    Position pos = Position::from_fen("rnbqkb1r/pppp1Qpp/5n2/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4");
+    Position pos =
+        Position::from_fen("rnbqkb1r/pppp1Qpp/5n2/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4");
     EXPECT_TRUE(pos.is_in_check());
     EXPECT_TRUE(pos.is_in_check(Color::Black));
     EXPECT_FALSE(pos.is_in_check(Color::White));

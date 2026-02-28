@@ -1,9 +1,8 @@
 /// @file position.cpp
 /// Position implementation: constructors, FEN, make/unmake, attacks.
 
-#include <chessie/position.hpp>
-
 #include <chessie/magic.hpp>
+#include <chessie/position.hpp>
 
 #include <charconv>
 #include <stdexcept>
@@ -24,7 +23,8 @@ auto split_spaces(std::string_view sv, int max_parts = 8) -> std::vector<std::st
     while (i < sv.size()) {
         // Skip leading spaces
         while (i < sv.size() && sv[i] == ' ') ++i;
-        if (i >= sv.size()) break;
+        if (i >= sv.size())
+            break;
         std::size_t start = i;
         while (i < sv.size() && sv[i] != ' ') ++i;
         parts.push_back(sv.substr(start, i - start));
@@ -127,8 +127,7 @@ Position Position::from_fen(std::string_view fen) {
     } else if (parts[1] == "b") {
         side = Color::Black;
     } else {
-        throw std::invalid_argument(
-            "Invalid FEN side-to-move: " + std::string(parts[1]));
+        throw std::invalid_argument("Invalid FEN side-to-move: " + std::string(parts[1]));
     }
 
     // 3. Castling rights
@@ -149,8 +148,7 @@ Position Position::from_fen(std::string_view fen) {
                     castling |= kBlackQueenside;
                     break;
                 default:
-                    throw std::invalid_argument(
-                        std::string("Invalid castling char in FEN: ") + ch);
+                    throw std::invalid_argument(std::string("Invalid castling char in FEN: ") + ch);
             }
         }
     }
@@ -160,8 +158,7 @@ Position Position::from_fen(std::string_view fen) {
     if (parts[3] != "-") {
         ep = parse_square(parts[3]);
         if (ep == kNoSquare) {
-            throw std::invalid_argument(
-                "Invalid FEN en-passant square: " + std::string(parts[3]));
+            throw std::invalid_argument("Invalid FEN en-passant square: " + std::string(parts[3]));
         }
     }
 
@@ -180,7 +177,8 @@ std::string Position::to_fen() const {
 
     // 1. Piece placement (rank 8 → rank 1)
     for (int rank = 7; rank >= 0; --rank) {
-        if (rank < 7) fen += '/';
+        if (rank < 7)
+            fen += '/';
         int empty = 0;
         for (int file = 0; file < 8; ++file) {
             Piece p = board_.piece_at(make_square(file, rank));
@@ -194,7 +192,8 @@ std::string Position::to_fen() const {
                 fen += p.fen_char();
             }
         }
-        if (empty > 0) fen += static_cast<char>('0' + empty);
+        if (empty > 0)
+            fen += static_cast<char>('0' + empty);
     }
 
     // 2. Side to move
@@ -206,10 +205,14 @@ std::string Position::to_fen() const {
     if (castling_ == kCastlingNone) {
         fen += '-';
     } else {
-        if (castling_ & kWhiteKingside) fen += 'K';
-        if (castling_ & kWhiteQueenside) fen += 'Q';
-        if (castling_ & kBlackKingside) fen += 'k';
-        if (castling_ & kBlackQueenside) fen += 'q';
+        if (castling_ & kWhiteKingside)
+            fen += 'K';
+        if (castling_ & kWhiteQueenside)
+            fen += 'Q';
+        if (castling_ & kBlackKingside)
+            fen += 'k';
+        if (castling_ & kBlackQueenside)
+            fen += 'q';
     }
 
     // 4. En passant
@@ -432,7 +435,8 @@ bool Position::is_in_check(Color c) const noexcept {
 int Position::repetition_count() const {
     int count = 0;
     for (auto k : key_history_) {
-        if (k == key_) ++count;
+        if (k == key_)
+            ++count;
     }
     return count;
 }
@@ -467,14 +471,16 @@ void Position::toggle_side_hash() {
 }
 
 void Position::set_castling(CastlingRights cr) {
-    if (cr == castling_) return;
+    if (cr == castling_)
+        return;
     key_ ^= zobrist::castling_key(castling_);
     castling_ = cr;
     key_ ^= zobrist::castling_key(castling_);
 }
 
 void Position::set_en_passant(Square ep) {
-    if (ep == en_passant_) return;
+    if (ep == en_passant_)
+        return;
     if (en_passant_ != kNoSquare) {
         key_ ^= zobrist::en_passant_key(en_passant_);
     }

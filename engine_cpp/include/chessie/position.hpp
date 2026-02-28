@@ -30,8 +30,8 @@ struct UndoInfo {
     CastlingRights castling;
     Square en_passant;
     int halfmove_clock;
-    Piece captured;       ///< kNoPiece if no capture
-    std::uint64_t key;    ///< Zobrist key before the move
+    Piece captured;     ///< kNoPiece if no capture
+    std::uint64_t key;  ///< Zobrist key before the move
 };
 
 // ── Castling rights update table ────────────────────────────────────────────
