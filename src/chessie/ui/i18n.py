@@ -131,7 +131,7 @@ class Strings:
     settings_engine_time_suffix: str
     settings_engine_note: str
 
-    # ── AnalysisDialog ────────────────────────────────────────────────────
+    # ── AnalysisPanel ─────────────────────────────────────────────────────
     analysis_title: str
     analysis_summary: str
     analysis_hint_jump: str
@@ -140,6 +140,8 @@ class Strings:
     analysis_col_best: str
     analysis_col_cp_loss: str
     analysis_col_verdict: str
+    analysis_move_title: str
+    analysis_exit: str
 
 
 # ── Built-in locales ─────────────────────────────────────────────────────────
@@ -237,6 +239,8 @@ _EN = Strings(
     analysis_col_best="Best",
     analysis_col_cp_loss="CPL",
     analysis_col_verdict="Verdict",
+    analysis_move_title="Move",
+    analysis_exit="Exit Analysis",
 )
 
 _RU = Strings(
@@ -332,6 +336,8 @@ _RU = Strings(
     analysis_col_best="Лучший",
     analysis_col_cp_loss="CPL",
     analysis_col_verdict="Оценка",
+    analysis_move_title="Ход",
+    analysis_exit="Выйти из анализа",
 )
 
 _LOCALES: dict[str, Strings] = {

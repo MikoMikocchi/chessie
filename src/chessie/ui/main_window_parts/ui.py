@@ -8,6 +8,7 @@ from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
+    QPushButton,
     QStatusBar,
     QVBoxLayout,
     QWidget,
@@ -15,9 +16,11 @@ from PyQt6.QtWidgets import (
 
 from chessie.ui.board.board_view import BoardView
 from chessie.ui.i18n import t
+from chessie.ui.panels.analysis_panel import AnalysisPanel
 from chessie.ui.panels.clock_widget import ClockWidget
 from chessie.ui.panels.control_panel import ControlPanel
 from chessie.ui.panels.eval_bar import EvalBar
+from chessie.ui.panels.eval_graph import EvalGraph
 from chessie.ui.panels.move_panel import MovePanel
 
 
@@ -41,14 +44,48 @@ def setup_ui(host: Any) -> None:
     right = QVBoxLayout()
     right.setSpacing(6)
 
+    # -- Normal game widgets --
     host._clock_widget = ClockWidget()
     right.addWidget(host._clock_widget)
 
+    # -- Analysis-mode widgets (hidden by default) --
+    host._eval_graph = EvalGraph()
+    host._eval_graph.hide()
+    right.addWidget(host._eval_graph)
+
+    host._analysis_panel = AnalysisPanel()
+    host._analysis_panel.hide()
+    right.addWidget(host._analysis_panel)
+
+    # -- Move panel (always visible) --
     host._move_panel = MovePanel()
     right.addWidget(host._move_panel, stretch=1)
 
+    # -- Control panel (normal mode) --
     host._control_panel = ControlPanel()
     right.addWidget(host._control_panel)
+
+    # -- Exit analysis button (analysis mode) --
+    host._exit_analysis_btn = QPushButton(t().analysis_exit)
+    host._exit_analysis_btn.setStyleSheet(
+        """
+        QPushButton {
+            background: #3a3a3a;
+            color: #e0e0e0;
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        QPushButton:hover {
+            background: #4a4a4a;
+            border-color: #777;
+        }
+        """
+    )
+    host._exit_analysis_btn.clicked.connect(host._on_exit_analysis)
+    host._exit_analysis_btn.hide()
+    right.addWidget(host._exit_analysis_btn)
 
     right_widget = QWidget()
     right_widget.setLayout(right)
@@ -140,4 +177,6 @@ def retranslate_ui(host: Any) -> None:
     host._move_panel.retranslate_ui()
     host._control_panel.retranslate_ui()
     host._clock_widget.retranslate_ui()
+    host._analysis_panel.retranslate_ui()
+    host._exit_analysis_btn.setText(s.analysis_exit)
     host._update_status()

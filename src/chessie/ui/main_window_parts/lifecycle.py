@@ -46,6 +46,12 @@ def disconnect_game_events(host: Any) -> None:
 
 def after_new_game(host: Any) -> None:
     """Reset auxiliary UI state after creating a new game."""
+    # Exit analysis mode if active
+    if getattr(host, "_analysis_mode", False):
+        from chessie.ui.main_window_parts import analysis as analysis_part
+
+        analysis_part.on_exit_analysis(host)
+
     host._analysis_session.cancel_analysis()
     host._analysis_report = None
     host._act_analyze_game.setEnabled(True)

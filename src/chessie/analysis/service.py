@@ -20,6 +20,8 @@ from chessie.engine.search import CancelCheck, IEngine
 if TYPE_CHECKING:
     from chessie.game.state import MoveRecord
 
+_BRILLIANT_MAX_CP_LOSS = 0
+_GREAT_MAX_CP_LOSS = 10
 _BEST_MAX_CP_LOSS = 20
 _GOOD_MAX_CP_LOSS = 60
 _INACCURACY_MAX_CP_LOSS = 120
@@ -37,6 +39,10 @@ class AnalysisCancelled(Exception):
 class _SideAcc:
     moves: int = 0
     cp_loss_sum: int = 0
+    brilliant: int = 0
+    great: int = 0
+    best: int = 0
+    good: int = 0
     inaccuracies: int = 0
     mistakes: int = 0
     blunders: int = 0
@@ -136,7 +142,15 @@ def _to_white_cp(score_cp: int, side_to_move: Color) -> int:
     return score_cp if side_to_move == Color.WHITE else -score_cp
 
 
-def _classify_cp_loss(cp_loss: int) -> MoveJudgment:
+def _classify_cp_loss(
+    cp_loss: int,
+    *,
+    is_sacrifice: bool = False,
+) -> MoveJudgment:
+    if cp_loss <= _BRILLIANT_MAX_CP_LOSS and is_sacrifice:
+        return MoveJudgment.BRILLIANT
+    if cp_loss <= _GREAT_MAX_CP_LOSS:
+        return MoveJudgment.GREAT
     if cp_loss <= _BEST_MAX_CP_LOSS:
         return MoveJudgment.BEST
     if cp_loss <= _GOOD_MAX_CP_LOSS:
@@ -153,7 +167,15 @@ def _build_side_summary(analyses: Iterable[MoveAnalysis]) -> SideAnalysisSummary
     for move in analyses:
         acc.moves += 1
         acc.cp_loss_sum += move.cp_loss
-        if move.judgment == MoveJudgment.INACCURACY:
+        if move.judgment == MoveJudgment.BRILLIANT:
+            acc.brilliant += 1
+        elif move.judgment == MoveJudgment.GREAT:
+            acc.great += 1
+        elif move.judgment == MoveJudgment.BEST:
+            acc.best += 1
+        elif move.judgment == MoveJudgment.GOOD:
+            acc.good += 1
+        elif move.judgment == MoveJudgment.INACCURACY:
             acc.inaccuracies += 1
         elif move.judgment == MoveJudgment.MISTAKE:
             acc.mistakes += 1
@@ -161,10 +183,16 @@ def _build_side_summary(analyses: Iterable[MoveAnalysis]) -> SideAnalysisSummary
             acc.blunders += 1
 
     avg = (acc.cp_loss_sum / acc.moves) if acc.moves > 0 else 0.0
+    accuracy = max(0.0, 100.0 - avg * 0.1) if acc.moves > 0 else 100.0
     return SideAnalysisSummary(
         moves=acc.moves,
         avg_cp_loss=avg,
         inaccuracies=acc.inaccuracies,
         mistakes=acc.mistakes,
         blunders=acc.blunders,
+        brilliant=acc.brilliant,
+        great=acc.great,
+        best=acc.best,
+        good=acc.good,
+        accuracy=accuracy,
     )

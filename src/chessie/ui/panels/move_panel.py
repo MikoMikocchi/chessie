@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from chessie.analysis.models import MoveJudgment
 from chessie.core.enums import Color
 from chessie.game.state import MoveRecord
 from chessie.ui.i18n import t
@@ -53,6 +54,7 @@ class MovePanel(QWidget):
         self._move_buttons: dict[int, QToolButton] = {}
         self._active_ply: int | None = None
         self._use_figurine_notation = True
+        self._annotations: dict[int, MoveJudgment] = {}
         self._setup_ui()
         self.retranslate_ui()
 
@@ -78,14 +80,36 @@ class MovePanel(QWidget):
         self._records.clear()
         self._move_buttons.clear()
         self._active_ply = None
+        self._annotations.clear()
         self._list.clear()
 
     def _create_move_button(self, text: str, ply: int) -> QToolButton:
         btn = QToolButton()
-        btn.setText(text)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         btn.setProperty("activeMove", False)
+
+        # Apply annotation if available
+        judgment = self._annotations.get(ply)
+        if judgment is not None and judgment.nag:
+            nag = judgment.nag
+            color_hex = judgment.color_hex
+            display = (
+                f'{text} <span style="color:{color_hex};font-weight:bold;">{nag}</span>'
+            )
+            btn.setText("")  # clear plain text
+            # Use a QLabel inside for rich text
+            inner = QLabel(display)
+            inner.setTextFormat(Qt.TextFormat.RichText)
+            inner.setFont(QFont("AdwaitaMono Nerd Font", 12))
+            inner.setStyleSheet("background: transparent; padding: 0;")
+            inner.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+            inner_layout = QHBoxLayout(btn)
+            inner_layout.setContentsMargins(8, 2, 8, 2)
+            inner_layout.addWidget(inner)
+        else:
+            btn.setText(text)
+
         btn.setStyleSheet(
             """
             QToolButton {
@@ -214,4 +238,14 @@ class MovePanel(QWidget):
         """Rebuild the entire move list."""
         self._records = list(records)
         self._active_ply = len(self._records) - 1 if self._records else None
+        self._rebuild_list()
+
+    def set_annotations(self, annotations: dict[int, MoveJudgment]) -> None:
+        """Set per-ply move annotations (NAG symbols)."""
+        self._annotations = dict(annotations)
+        self._rebuild_list()
+
+    def clear_annotations(self) -> None:
+        """Remove all annotations."""
+        self._annotations.clear()
         self._rebuild_list()

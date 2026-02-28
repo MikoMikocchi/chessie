@@ -16,7 +16,6 @@ from chessie.game.interfaces import GameEndReason, GamePhase
 from chessie.game.player import AIPlayer
 from chessie.game.state import GameState
 from chessie.ui.analysis_session import AnalysisSession
-from chessie.ui.dialogs.analysis_dialog import AnalysisDialog
 from chessie.ui.dialogs.settings_dialog import AppSettings, SettingsDialog
 from chessie.ui.engine_session import EngineSession
 from chessie.ui.game_sync import GameSync
@@ -38,6 +37,9 @@ class MainWindow(QMainWindow):
     _board_view: Any
     _move_panel: Any
     _eval_bar: Any
+    _eval_graph: Any
+    _analysis_panel: Any
+    _exit_analysis_btn: Any
     _control_panel: Any
     _clock_widget: Any
     _status: Any
@@ -65,6 +67,7 @@ class MainWindow(QMainWindow):
         self._pgn_move_comments: list[str | None] = []
         self._history_view_ply: int | None = None
         self._analysis_report: Any = None
+        self._analysis_mode: bool = False
 
         self._setup_ui()
 
@@ -196,6 +199,12 @@ class MainWindow(QMainWindow):
     def _on_analyze_game(self) -> None:
         analysis_part.on_analyze_game(self, message_box_cls=QMessageBox)
 
+    def _on_exit_analysis(self) -> None:
+        analysis_part.on_exit_analysis(self)
+
+    def _on_analysis_ply_selected(self, ply: int) -> None:
+        analysis_part.on_analysis_ply_selected(self, ply)
+
     def _on_move_history_selected(self, ply: int) -> None:
         game_part.on_move_history_selected(self, ply)
 
@@ -228,7 +237,6 @@ class MainWindow(QMainWindow):
         analysis_part.on_analysis_finished(
             self,
             report,
-            analysis_dialog_cls=AnalysisDialog,
         )
 
     def _on_analysis_failed(self, message: str) -> None:

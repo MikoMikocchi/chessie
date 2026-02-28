@@ -152,14 +152,18 @@ def on_move_history_selected(host: Any, ply: int) -> None:
         scene.highlight_check()
         host._sync_board_interactivity()
         host._update_status()
-        return
+    else:
+        preview_pos = position_from_fen(history[ply].fen_after)
+        host._history_view_ply = ply
+        scene.set_position(preview_pos)
+        scene.highlight_last_move(history[ply].move)
+        scene.highlight_check()
+        scene.set_interactive(False)
 
-    preview_pos = position_from_fen(history[ply].fen_after)
-    host._history_view_ply = ply
-    scene.set_position(preview_pos)
-    scene.highlight_last_move(history[ply].move)
-    scene.highlight_check()
-    scene.set_interactive(False)
+    # Update analysis panel if in analysis mode
+    if getattr(host, "_analysis_mode", False):
+        host._analysis_panel.show_move_info(ply)
+        host._eval_graph.set_active_ply(ply)
 
 
 def resolve_resign_color(host: Any) -> Color:
