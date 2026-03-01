@@ -278,8 +278,13 @@ class Position:
         key = self._key_stack[-1]
         return self._key_counts.get(key, 0)
 
+    @property
+    def zobrist_hash(self) -> int:
+        """Current Zobrist key for the full position."""
+        return self._key_stack[-1]
+
     def _position_key(self) -> int:
-        return self._zobrist_hash
+        return self.zobrist_hash
 
     def _compute_zobrist_hash(self) -> int:
         key = zobrist_castling_key(self.castling)

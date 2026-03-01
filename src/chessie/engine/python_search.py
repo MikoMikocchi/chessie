@@ -185,7 +185,7 @@ class PythonSearchEngine(IEngine):
         self._nodes += 1
         alpha_orig = alpha
         beta_orig = beta
-        tt_key = position._key_stack[-1]
+        tt_key = position.zobrist_hash
         tt_entry = self._tt.get(tt_key)
         tt_move = tt_entry.best_move if tt_entry is not None else None
 
@@ -505,7 +505,7 @@ class PythonSearchEngine(IEngine):
         position.side_to_move = position.side_to_move.opposite
         position._toggle_side_hash()
 
-        key = position._position_key()
+        key = position.zobrist_hash
         position._key_stack.append(key)
         position._key_counts[key] = position._key_counts.get(key, 0) + 1
         return state
