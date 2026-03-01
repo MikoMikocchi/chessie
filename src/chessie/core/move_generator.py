@@ -6,14 +6,13 @@ from typing import TYPE_CHECKING
 
 from chessie.core.enums import CastlingRights, Color, MoveFlag, PieceType
 from chessie.core.move import Move
-from chessie.core.types import Square, file_of, make_square, rank_of
+from chessie.core.types import Square, make_square
 
 if TYPE_CHECKING:
     from chessie.core.position import Position
 
-# ── Direction tables ─────────────────────────────────────────────────────────
 
-KNIGHT_OFFSETS: list[tuple[int, int]] = [
+KNIGHT_OFFSETS: tuple[tuple[int, int], ...] = (
     (-2, -1),
     (-2, 1),
     (-1, -2),
@@ -22,9 +21,9 @@ KNIGHT_OFFSETS: list[tuple[int, int]] = [
     (1, 2),
     (2, -1),
     (2, 1),
-]
+)
 
-KING_OFFSETS: list[tuple[int, int]] = [
+KING_OFFSETS: tuple[tuple[int, int], ...] = (
     (-1, -1),
     (-1, 0),
     (-1, 1),
@@ -33,11 +32,109 @@ KING_OFFSETS: list[tuple[int, int]] = [
     (1, -1),
     (1, 0),
     (1, 1),
-]
+)
 
-BISHOP_DIRS: list[tuple[int, int]] = [(-1, -1), (-1, 1), (1, -1), (1, 1)]
-ROOK_DIRS: list[tuple[int, int]] = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-QUEEN_DIRS: list[tuple[int, int]] = BISHOP_DIRS + ROOK_DIRS
+BISHOP_DIRS: tuple[tuple[int, int], ...] = ((-1, -1), (-1, 1), (1, -1), (1, 1))
+ROOK_DIRS: tuple[tuple[int, int], ...] = ((-1, 0), (1, 0), (0, -1), (0, 1))
+QUEEN_DIRS: tuple[tuple[int, int], ...] = BISHOP_DIRS + ROOK_DIRS
+
+_PROMOTION_TYPES: tuple[PieceType, ...] = (
+    PieceType.QUEEN,
+    PieceType.ROOK,
+    PieceType.BISHOP,
+    PieceType.KNIGHT,
+)
+_COLOR_OPPOSITE: tuple[Color, Color] = (Color.BLACK, Color.WHITE)
+
+
+# -- Precomputed lookup tables ---------------------------------------------
+
+
+def _build_targets(
+    offsets: tuple[tuple[int, int], ...],
+) -> tuple[tuple[Square, ...], ...]:
+    targets: list[tuple[Square, ...]] = []
+    for sq in range(64):
+        file_idx = sq & 7
+        rank_idx = sq >> 3
+        moves: list[Square] = []
+        for df, dr in offsets:
+            af = file_idx + df
+            ar = rank_idx + dr
+            if 0 <= af < 8 and 0 <= ar < 8:
+                moves.append(make_square(af, ar))
+        targets.append(tuple(moves))
+    return tuple(targets)
+
+
+def _build_attack_masks(targets: tuple[tuple[Square, ...], ...]) -> tuple[int, ...]:
+    masks: list[int] = [0] * 64
+    for sq in range(64):
+        mask = 0
+        for to_sq in targets[sq]:
+            mask |= 1 << to_sq
+        masks[sq] = mask
+    return tuple(masks)
+
+
+def _build_pawn_attacker_masks() -> tuple[tuple[int, ...], tuple[int, ...]]:
+    white_masks: list[int] = [0] * 64
+    black_masks: list[int] = [0] * 64
+
+    for sq in range(64):
+        file_idx = sq & 7
+        rank_idx = sq >> 3
+
+        white_mask = 0
+        if rank_idx > 0:
+            if file_idx > 0:
+                white_mask |= 1 << make_square(file_idx - 1, rank_idx - 1)
+            if file_idx < 7:
+                white_mask |= 1 << make_square(file_idx + 1, rank_idx - 1)
+
+        black_mask = 0
+        if rank_idx < 7:
+            if file_idx > 0:
+                black_mask |= 1 << make_square(file_idx - 1, rank_idx + 1)
+            if file_idx < 7:
+                black_mask |= 1 << make_square(file_idx + 1, rank_idx + 1)
+
+        white_masks[sq] = white_mask
+        black_masks[sq] = black_mask
+
+    return (tuple(white_masks), tuple(black_masks))
+
+
+def _build_rays(
+    directions: tuple[tuple[int, int], ...],
+) -> tuple[tuple[tuple[Square, ...], ...], ...]:
+    rays_per_square: list[tuple[tuple[Square, ...], ...]] = []
+    for sq in range(64):
+        file_idx = sq & 7
+        rank_idx = sq >> 3
+        square_rays: list[tuple[Square, ...]] = []
+        for df, dr in directions:
+            af = file_idx + df
+            ar = rank_idx + dr
+            ray: list[Square] = []
+            while 0 <= af < 8 and 0 <= ar < 8:
+                ray.append(make_square(af, ar))
+                af += df
+                ar += dr
+            square_rays.append(tuple(ray))
+        rays_per_square.append(tuple(square_rays))
+    return tuple(rays_per_square)
+
+
+_KNIGHT_TARGETS = _build_targets(KNIGHT_OFFSETS)
+_KING_TARGETS = _build_targets(KING_OFFSETS)
+_KNIGHT_ATTACK_MASKS = _build_attack_masks(_KNIGHT_TARGETS)
+_KING_ATTACK_MASKS = _build_attack_masks(_KING_TARGETS)
+_PAWN_ATTACKER_MASKS = _build_pawn_attacker_masks()
+
+_BISHOP_RAYS = _build_rays(BISHOP_DIRS)
+_ROOK_RAYS = _build_rays(ROOK_DIRS)
+_QUEEN_RAYS = _build_rays(QUEEN_DIRS)
 
 
 class MoveGenerator:
@@ -53,17 +150,18 @@ class MoveGenerator:
         self._pos = position
         self._board = position.board
 
-    # ── Public API ───────────────────────────────────────────────────────
+    # -- Public API ---------------------------------------------------------
 
     def generate_legal_moves(self) -> list[Move]:
         """All strictly legal moves for the side to move."""
         legal: list[Move] = []
+        moving_color = self._pos.side_to_move
+        append_legal = legal.append
+
         for move in self.generate_pseudo_legal_moves():
             self._pos.make_move(move)
-            # After making the move, side_to_move has flipped.
-            # We check if the *moving* side's king is now attacked.
-            if not self.is_in_check(self._pos.side_to_move.opposite):
-                legal.append(move)
+            if not self.is_in_check(moving_color):
+                append_legal(move)
             self._pos.unmake_move(move)
         return legal
 
@@ -71,151 +169,183 @@ class MoveGenerator:
         """All pseudo-legal moves (may leave own king in check)."""
         moves: list[Move] = []
         color = self._pos.side_to_move
-        for sq in self._board.all_pieces(color):
-            piece = self._board[sq]
-            assert piece is not None
-            pt = piece.piece_type
+        board = self._board
 
-            if pt == PieceType.PAWN:
-                self._gen_pawn(sq, color, moves)
-            elif pt == PieceType.KNIGHT:
-                self._gen_knight(sq, color, moves)
-            elif pt == PieceType.BISHOP:
-                self._gen_sliding(sq, color, BISHOP_DIRS, moves)
-            elif pt == PieceType.ROOK:
-                self._gen_sliding(sq, color, ROOK_DIRS, moves)
-            elif pt == PieceType.QUEEN:
-                self._gen_sliding(sq, color, QUEEN_DIRS, moves)
-            elif pt == PieceType.KING:
-                self._gen_king(sq, color, moves)
+        pawns = board.pieces_bitboard(color, PieceType.PAWN)
+        while pawns:
+            lsb = pawns & -pawns
+            self._gen_pawn(lsb.bit_length() - 1, color, moves)
+            pawns ^= lsb
+
+        knights = board.pieces_bitboard(color, PieceType.KNIGHT)
+        while knights:
+            lsb = knights & -knights
+            self._gen_knight(lsb.bit_length() - 1, color, moves)
+            knights ^= lsb
+
+        bishops = board.pieces_bitboard(color, PieceType.BISHOP)
+        while bishops:
+            lsb = bishops & -bishops
+            sq = lsb.bit_length() - 1
+            self._gen_sliding(sq, color, _BISHOP_RAYS[sq], moves)
+            bishops ^= lsb
+
+        rooks = board.pieces_bitboard(color, PieceType.ROOK)
+        while rooks:
+            lsb = rooks & -rooks
+            sq = lsb.bit_length() - 1
+            self._gen_sliding(sq, color, _ROOK_RAYS[sq], moves)
+            rooks ^= lsb
+
+        queens = board.pieces_bitboard(color, PieceType.QUEEN)
+        while queens:
+            lsb = queens & -queens
+            sq = lsb.bit_length() - 1
+            self._gen_sliding(sq, color, _QUEEN_RAYS[sq], moves)
+            queens ^= lsb
+
+        kings = board.pieces_bitboard(color, PieceType.KING)
+        while kings:
+            lsb = kings & -kings
+            self._gen_king(lsb.bit_length() - 1, color, moves)
+            kings ^= lsb
+
         return moves
 
-    # ── Attack detection (public) ────────────────────────────────────────
+    # -- Attack detection (public) -----------------------------------------
 
     def is_in_check(self, color: Color) -> bool:
         """Is *color*'s king attacked by the opponent?"""
         king_sq = self._board.king_square(color)
-        return self.is_square_attacked(king_sq, color.opposite)
+        return self.is_square_attacked(king_sq, _COLOR_OPPOSITE[int(color)])
 
     def is_square_attacked(self, sq: Square, by_color: Color) -> bool:
         """Is *sq* attacked by any piece of *by_color*?"""
-        f, r = file_of(sq), rank_of(sq)
+        board = self._board
+        by_idx = int(by_color)
 
-        # ── Pawns ────────────────────────────────────────────────────
-        pawn_rank_dir = -1 if by_color == Color.WHITE else 1
-        for df in (-1, 1):
-            af, ar = f + df, r + pawn_rank_dir
-            if 0 <= af < 8 and 0 <= ar < 8:
-                p = self._board[make_square(af, ar)]
-                if (
-                    p is not None
-                    and p.color == by_color
-                    and p.piece_type == PieceType.PAWN
-                ):
-                    return True
+        if (
+            board.pieces_bitboard(by_color, PieceType.PAWN)
+            & _PAWN_ATTACKER_MASKS[by_idx][sq]
+        ):
+            return True
 
-        # ── Knights ──────────────────────────────────────────────────
-        for df, dr in KNIGHT_OFFSETS:
-            af, ar = f + df, r + dr
-            if 0 <= af < 8 and 0 <= ar < 8:
-                p = self._board[make_square(af, ar)]
-                if (
-                    p is not None
-                    and p.color == by_color
-                    and p.piece_type == PieceType.KNIGHT
-                ):
-                    return True
+        if board.pieces_bitboard(by_color, PieceType.KNIGHT) & _KNIGHT_ATTACK_MASKS[sq]:
+            return True
 
-        # ── King ─────────────────────────────────────────────────────
-        for df, dr in KING_OFFSETS:
-            af, ar = f + df, r + dr
-            if 0 <= af < 8 and 0 <= ar < 8:
-                p = self._board[make_square(af, ar)]
-                if (
-                    p is not None
-                    and p.color == by_color
-                    and p.piece_type == PieceType.KING
-                ):
-                    return True
+        if board.pieces_bitboard(by_color, PieceType.KING) & _KING_ATTACK_MASKS[sq]:
+            return True
 
-        # ── Bishops / Queens (diagonals) ─────────────────────────────
-        for df, dr in BISHOP_DIRS:
-            af, ar = f + df, r + dr
-            while 0 <= af < 8 and 0 <= ar < 8:
-                p = self._board[make_square(af, ar)]
-                if p is not None:
-                    if p.color == by_color and p.piece_type in (
+        if board.pieces_bitboard(by_color, PieceType.BISHOP) or board.pieces_bitboard(
+            by_color, PieceType.QUEEN
+        ):
+            for ray in _BISHOP_RAYS[sq]:
+                for to_sq in ray:
+                    piece = board[to_sq]
+                    if piece is None:
+                        continue
+                    if piece.color == by_color and piece.piece_type in (
                         PieceType.BISHOP,
                         PieceType.QUEEN,
                     ):
                         return True
                     break
-                af += df
-                ar += dr
 
-        # ── Rooks / Queens (straights) ───────────────────────────────
-        for df, dr in ROOK_DIRS:
-            af, ar = f + df, r + dr
-            while 0 <= af < 8 and 0 <= ar < 8:
-                p = self._board[make_square(af, ar)]
-                if p is not None:
-                    if p.color == by_color and p.piece_type in (
+        if board.pieces_bitboard(by_color, PieceType.ROOK) or board.pieces_bitboard(
+            by_color, PieceType.QUEEN
+        ):
+            for ray in _ROOK_RAYS[sq]:
+                for to_sq in ray:
+                    piece = board[to_sq]
+                    if piece is None:
+                        continue
+                    if piece.color == by_color and piece.piece_type in (
                         PieceType.ROOK,
                         PieceType.QUEEN,
                     ):
                         return True
                     break
-                af += df
-                ar += dr
 
         return False
 
-    # ── Piece-specific generators (private) ──────────────────────────────
+    # -- Piece-specific generators (private) -------------------------------
 
     def _gen_pawn(self, sq: Square, color: Color, moves: list[Move]) -> None:
-        f, r = file_of(sq), rank_of(sq)
-        direction = 1 if color == Color.WHITE else -1
-        start_rank = 1 if color == Color.WHITE else 6
-        promo_rank = 7 if color == Color.WHITE else 0
+        board = self._board
+        file_idx = sq & 7
+        rank_idx = sq >> 3
 
-        to_r = r + direction
-        if not (0 <= to_r < 8):
+        if color == Color.WHITE:
+            one_step = sq + 8
+            if one_step < 64 and board.is_empty(one_step):
+                if rank_idx == 6:
+                    for pt in _PROMOTION_TYPES:
+                        moves.append(Move(sq, one_step, MoveFlag.PROMOTION, pt))
+                else:
+                    moves.append(Move(sq, one_step))
+                    if rank_idx == 1:
+                        two_step = sq + 16
+                        if board.is_empty(two_step):
+                            moves.append(Move(sq, two_step, MoveFlag.DOUBLE_PAWN))
+
+            cap_rank_valid = rank_idx < 7
+            if cap_rank_valid and file_idx > 0:
+                cap_sq = sq + 7
+                target = board[cap_sq]
+                if target is not None and target.color != color:
+                    if rank_idx == 6:
+                        for pt in _PROMOTION_TYPES:
+                            moves.append(Move(sq, cap_sq, MoveFlag.PROMOTION, pt))
+                    else:
+                        moves.append(Move(sq, cap_sq))
+                elif cap_sq == self._pos.en_passant:
+                    moves.append(Move(sq, cap_sq, MoveFlag.EN_PASSANT))
+
+            if cap_rank_valid and file_idx < 7:
+                cap_sq = sq + 9
+                target = board[cap_sq]
+                if target is not None and target.color != color:
+                    if rank_idx == 6:
+                        for pt in _PROMOTION_TYPES:
+                            moves.append(Move(sq, cap_sq, MoveFlag.PROMOTION, pt))
+                    else:
+                        moves.append(Move(sq, cap_sq))
+                elif cap_sq == self._pos.en_passant:
+                    moves.append(Move(sq, cap_sq, MoveFlag.EN_PASSANT))
             return
 
-        # ── Single push ──────────────────────────────────────────────
-        to_sq = make_square(f, to_r)
-        if self._board.is_empty(to_sq):
-            if to_r == promo_rank:
-                for pt in (
-                    PieceType.QUEEN,
-                    PieceType.ROOK,
-                    PieceType.BISHOP,
-                    PieceType.KNIGHT,
-                ):
-                    moves.append(Move(sq, to_sq, MoveFlag.PROMOTION, pt))
+        # Black pawns
+        one_step = sq - 8
+        if one_step >= 0 and board.is_empty(one_step):
+            if rank_idx == 1:
+                for pt in _PROMOTION_TYPES:
+                    moves.append(Move(sq, one_step, MoveFlag.PROMOTION, pt))
             else:
-                moves.append(Move(sq, to_sq))
-                # ── Double push ──────────────────────────────────────
-                if r == start_rank:
-                    to_sq2 = make_square(f, r + 2 * direction)
-                    if self._board.is_empty(to_sq2):
-                        moves.append(Move(sq, to_sq2, MoveFlag.DOUBLE_PAWN))
+                moves.append(Move(sq, one_step))
+                if rank_idx == 6:
+                    two_step = sq - 16
+                    if board.is_empty(two_step):
+                        moves.append(Move(sq, two_step, MoveFlag.DOUBLE_PAWN))
 
-        # ── Captures (including en passant) ──────────────────────────
-        for df in (-1, 1):
-            cf = f + df
-            if not (0 <= cf < 8):
-                continue
-            cap_sq = make_square(cf, to_r)
-            target = self._board[cap_sq]
+        cap_rank_valid = rank_idx > 0
+        if cap_rank_valid and file_idx > 0:
+            cap_sq = sq - 9
+            target = board[cap_sq]
             if target is not None and target.color != color:
-                if to_r == promo_rank:
-                    for pt in (
-                        PieceType.QUEEN,
-                        PieceType.ROOK,
-                        PieceType.BISHOP,
-                        PieceType.KNIGHT,
-                    ):
+                if rank_idx == 1:
+                    for pt in _PROMOTION_TYPES:
+                        moves.append(Move(sq, cap_sq, MoveFlag.PROMOTION, pt))
+                else:
+                    moves.append(Move(sq, cap_sq))
+            elif cap_sq == self._pos.en_passant:
+                moves.append(Move(sq, cap_sq, MoveFlag.EN_PASSANT))
+
+        if cap_rank_valid and file_idx < 7:
+            cap_sq = sq - 7
+            target = board[cap_sq]
+            if target is not None and target.color != color:
+                if rank_idx == 1:
+                    for pt in _PROMOTION_TYPES:
                         moves.append(Move(sq, cap_sq, MoveFlag.PROMOTION, pt))
                 else:
                     moves.append(Move(sq, cap_sq))
@@ -223,47 +353,36 @@ class MoveGenerator:
                 moves.append(Move(sq, cap_sq, MoveFlag.EN_PASSANT))
 
     def _gen_knight(self, sq: Square, color: Color, moves: list[Move]) -> None:
-        f, r = file_of(sq), rank_of(sq)
-        for df, dr in KNIGHT_OFFSETS:
-            af, ar = f + df, r + dr
-            if 0 <= af < 8 and 0 <= ar < 8:
-                to_sq = make_square(af, ar)
-                target = self._board[to_sq]
-                if target is None or target.color != color:
-                    moves.append(Move(sq, to_sq))
+        board = self._board
+        for to_sq in _KNIGHT_TARGETS[sq]:
+            target = board[to_sq]
+            if target is None or target.color != color:
+                moves.append(Move(sq, to_sq))
 
     def _gen_sliding(
         self,
         sq: Square,
         color: Color,
-        directions: list[tuple[int, int]],
+        rays: tuple[tuple[Square, ...], ...],
         moves: list[Move],
     ) -> None:
-        f, r = file_of(sq), rank_of(sq)
-        for df, dr in directions:
-            af, ar = f + df, r + dr
-            while 0 <= af < 8 and 0 <= ar < 8:
-                to_sq = make_square(af, ar)
-                target = self._board[to_sq]
+        board = self._board
+        for ray in rays:
+            for to_sq in ray:
+                target = board[to_sq]
                 if target is None:
                     moves.append(Move(sq, to_sq))
-                elif target.color != color:
+                    continue
+                if target.color != color:
                     moves.append(Move(sq, to_sq))
-                    break
-                else:
-                    break
-                af += df
-                ar += dr
+                break
 
     def _gen_king(self, sq: Square, color: Color, moves: list[Move]) -> None:
-        f, r = file_of(sq), rank_of(sq)
-        for df, dr in KING_OFFSETS:
-            af, ar = f + df, r + dr
-            if 0 <= af < 8 and 0 <= ar < 8:
-                to_sq = make_square(af, ar)
-                target = self._board[to_sq]
-                if target is None or target.color != color:
-                    moves.append(Move(sq, to_sq))
+        board = self._board
+        for to_sq in _KING_TARGETS[sq]:
+            target = board[to_sq]
+            if target is None or target.color != color:
+                moves.append(Move(sq, to_sq))
 
         self._gen_castling(sq, color, moves)
 
@@ -271,41 +390,40 @@ class MoveGenerator:
         if self.is_in_check(color):
             return
 
-        rank = 0 if color == Color.WHITE else 7
+        board = self._board
+        opponent = _COLOR_OPPOSITE[int(color)]
+        offset = 0 if color == Color.WHITE else 56
 
-        # ── Kingside (O-O) ───────────────────────────────────────────
         ks = (
             CastlingRights.WHITE_KINGSIDE
             if color == Color.WHITE
             else CastlingRights.BLACK_KINGSIDE
         )
         if self._pos.castling & ks:
-            f_sq = make_square(5, rank)
-            g_sq = make_square(6, rank)
+            f_sq = offset + 5
+            g_sq = offset + 6
             if (
-                self._board.is_empty(f_sq)
-                and self._board.is_empty(g_sq)
-                and not self.is_square_attacked(f_sq, color.opposite)
-                and not self.is_square_attacked(g_sq, color.opposite)
+                board.is_empty(f_sq)
+                and board.is_empty(g_sq)
+                and not self.is_square_attacked(f_sq, opponent)
+                and not self.is_square_attacked(g_sq, opponent)
             ):
                 moves.append(Move(king_sq, g_sq, MoveFlag.CASTLE_KINGSIDE))
 
-        # ── Queenside (O-O-O) ────────────────────────────────────────
         qs = (
             CastlingRights.WHITE_QUEENSIDE
             if color == Color.WHITE
             else CastlingRights.BLACK_QUEENSIDE
         )
         if self._pos.castling & qs:
-            b_sq = make_square(1, rank)
-            c_sq = make_square(2, rank)
-            d_sq = make_square(3, rank)
-            # queenside path squares must be clear and safe
+            b_sq = offset + 1
+            c_sq = offset + 2
+            d_sq = offset + 3
             if (
-                self._board.is_empty(b_sq)
-                and self._board.is_empty(c_sq)
-                and self._board.is_empty(d_sq)
-                and not self.is_square_attacked(c_sq, color.opposite)
-                and not self.is_square_attacked(d_sq, color.opposite)
+                board.is_empty(b_sq)
+                and board.is_empty(c_sq)
+                and board.is_empty(d_sq)
+                and not self.is_square_attacked(c_sq, opponent)
+                and not self.is_square_attacked(d_sq, opponent)
             ):
                 moves.append(Move(king_sq, c_sq, MoveFlag.CASTLE_QUEENSIDE))

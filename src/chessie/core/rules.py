@@ -42,9 +42,9 @@ class Rules:
     def is_insufficient_material(position: Position) -> bool:
         """K vs K, K+B vs K, K+N vs K, K+B vs K+B (same-color bishops)."""
         board = position.board
-        white = board.all_pieces(Color.WHITE)
-        black = board.all_pieces(Color.BLACK)
-        total = len(white) + len(black)
+        white_occ = board.all_pieces_bitboard(Color.WHITE)
+        black_occ = board.all_pieces_bitboard(Color.BLACK)
+        total = (white_occ | black_occ).bit_count()
 
         # K vs K
         if total == 2:
@@ -52,21 +52,22 @@ class Rules:
 
         # K+minor vs K
         if total == 3:
-            for sq in white + black:
-                p = board[sq]
-                if p is not None and p.piece_type in (
-                    PieceType.KNIGHT,
-                    PieceType.BISHOP,
-                ):
-                    return True
+            return (
+                board.has_piece(Color.WHITE, PieceType.KNIGHT)
+                or board.has_piece(Color.WHITE, PieceType.BISHOP)
+                or board.has_piece(Color.BLACK, PieceType.KNIGHT)
+                or board.has_piece(Color.BLACK, PieceType.BISHOP)
+            )
 
         # K+B vs K+B with same-colour bishops
         if total == 4:
-            wb = board.pieces(Color.WHITE, PieceType.BISHOP)
-            bb = board.pieces(Color.BLACK, PieceType.BISHOP)
-            if len(wb) == 1 and len(bb) == 1:
-                w_color = (file_of(wb[0]) + rank_of(wb[0])) % 2
-                b_color = (file_of(bb[0]) + rank_of(bb[0])) % 2
+            wb = board.pieces_bitboard(Color.WHITE, PieceType.BISHOP)
+            bb = board.pieces_bitboard(Color.BLACK, PieceType.BISHOP)
+            if wb.bit_count() == 1 and bb.bit_count() == 1:
+                w_sq = (wb & -wb).bit_length() - 1
+                b_sq = (bb & -bb).bit_length() - 1
+                w_color = (file_of(w_sq) + rank_of(w_sq)) % 2
+                b_color = (file_of(b_sq) + rank_of(b_sq)) % 2
                 return w_color == b_color
 
         return False

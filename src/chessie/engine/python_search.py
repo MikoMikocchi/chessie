@@ -39,6 +39,55 @@ _PIECE_VALUES: dict[PieceType, int] = {
 }
 
 
+def _piece_square_bonus_formula(
+    piece_type: PieceType,
+    color: Color,
+    sq: Square,
+) -> int:
+    """Compute piece-square bonus for one piece on one square."""
+    file_idx = file_of(sq)
+    rank_idx = rank_of(sq)
+    if color == Color.BLACK:
+        rank_idx = 7 - rank_idx
+
+    center_dist = abs(file_idx - 3) + abs(rank_idx - 3)
+
+    if piece_type == PieceType.PAWN:
+        return rank_idx * 12 - abs(file_idx - 3) * 2
+    if piece_type == PieceType.KNIGHT:
+        return 28 - center_dist * 8
+    if piece_type == PieceType.BISHOP:
+        return 22 - center_dist * 5 + rank_idx * 2
+    if piece_type == PieceType.ROOK:
+        return 10 + rank_idx * 3 - abs(file_idx - 3)
+    if piece_type == PieceType.QUEEN:
+        return 6 - center_dist * 2
+
+    # King: favor safety in opening/middlegame.
+    if rank_idx <= 1:
+        return 18 - abs(file_idx - 4) * 2
+    return -rank_idx * 8
+
+
+def _build_piece_square_tables() -> list[list[list[int]]]:
+    """[piece_type][color][square] -> piece-square bonus."""
+    tables = [[[0 for _ in range(64)] for _ in range(2)] for _ in range(7)]
+    for piece_type in PieceType:
+        pt_idx = int(piece_type)
+        for color in Color:
+            color_idx = int(color)
+            for sq in range(64):
+                tables[pt_idx][color_idx][sq] = _piece_square_bonus_formula(
+                    piece_type,
+                    color,
+                    sq,
+                )
+    return tables
+
+
+_PIECE_SQUARE_TABLES = _build_piece_square_tables()
+
+
 def _never_cancelled() -> bool:
     return False
 
@@ -252,9 +301,7 @@ class PythonSearchEngine(IEngine):
             )
 
             position.make_move(move)
-            if can_try_lmr and not MoveGenerator(position).is_in_check(
-                position.side_to_move
-            ):
+            if can_try_lmr and not gen.is_in_check(position.side_to_move):
                 reduction = self._lmr_reduction(depth, move_index)
                 reduced_depth = max(0, depth - 1 - reduction)
                 score = -self._negamax(
@@ -483,13 +530,13 @@ class PythonSearchEngine(IEngine):
         return self._has_non_pawn_material(position, position.side_to_move)
 
     def _has_non_pawn_material(self, position: Position, side: Color) -> bool:
-        for sq in position.board.all_pieces(side):
-            piece = position.board[sq]
-            if piece is None:
-                continue
-            if piece.piece_type not in (PieceType.KING, PieceType.PAWN):
-                return True
-        return False
+        board = position.board
+        return (
+            board.has_piece(side, PieceType.KNIGHT)
+            or board.has_piece(side, PieceType.BISHOP)
+            or board.has_piece(side, PieceType.ROOK)
+            or board.has_piece(side, PieceType.QUEEN)
+        )
 
     def _make_null_move(self, position: Position) -> _NullMoveState:
         state = _NullMoveState(
@@ -564,20 +611,33 @@ class PythonSearchEngine(IEngine):
         side_scores[move.from_sq][move.to_sq] = min(_HISTORY_MAX_SCORE, current + bonus)
 
     def _static_eval(self, position: Position) -> int:
+        board = position.board
+        piece_values = _PIECE_VALUES
+        pst = _PIECE_SQUARE_TABLES
+        white_idx = int(Color.WHITE)
+        black_idx = int(Color.BLACK)
+
         white_score = 0
         black_score = 0
 
-        for sq in range(64):
-            piece = position.board[sq]
-            if piece is None:
-                continue
+        for piece_type, material in piece_values.items():
+            pt_idx = int(piece_type)
+            white_table = pst[pt_idx][white_idx]
+            black_table = pst[pt_idx][black_idx]
 
-            val = _PIECE_VALUES[piece.piece_type]
-            val += self._piece_square_bonus(piece.piece_type, piece.color, sq)
-            if piece.color == Color.WHITE:
-                white_score += val
-            else:
-                black_score += val
+            white_bb = board.pieces_bitboard(Color.WHITE, piece_type)
+            while white_bb:
+                lsb = white_bb & -white_bb
+                sq = lsb.bit_length() - 1
+                white_score += material + white_table[sq]
+                white_bb ^= lsb
+
+            black_bb = board.pieces_bitboard(Color.BLACK, piece_type)
+            while black_bb:
+                lsb = black_bb & -black_bb
+                sq = lsb.bit_length() - 1
+                black_score += material + black_table[sq]
+                black_bb ^= lsb
 
         score = white_score - black_score
         if position.side_to_move == Color.WHITE:
@@ -591,9 +651,8 @@ class PythonSearchEngine(IEngine):
         from_sq: Square,
         to_sq: Square,
     ) -> int:
-        return self._piece_square_bonus(piece_type, color, to_sq) - (
-            self._piece_square_bonus(piece_type, color, from_sq)
-        )
+        table = _PIECE_SQUARE_TABLES[int(piece_type)][int(color)]
+        return table[to_sq] - table[from_sq]
 
     def _piece_square_bonus(
         self,
@@ -601,25 +660,4 @@ class PythonSearchEngine(IEngine):
         color: Color,
         sq: Square,
     ) -> int:
-        file_idx = file_of(sq)
-        rank_idx = rank_of(sq)
-        if color == Color.BLACK:
-            rank_idx = 7 - rank_idx
-
-        center_dist = abs(file_idx - 3) + abs(rank_idx - 3)
-
-        if piece_type == PieceType.PAWN:
-            return rank_idx * 12 - abs(file_idx - 3) * 2
-        if piece_type == PieceType.KNIGHT:
-            return 28 - center_dist * 8
-        if piece_type == PieceType.BISHOP:
-            return 22 - center_dist * 5 + rank_idx * 2
-        if piece_type == PieceType.ROOK:
-            return 10 + rank_idx * 3 - abs(file_idx - 3)
-        if piece_type == PieceType.QUEEN:
-            return 6 - center_dist * 2
-
-        # King: favor safety in opening/middlegame.
-        if rank_idx <= 1:
-            return 18 - abs(file_idx - 4) * 2
-        return -rank_idx * 8
+        return _PIECE_SQUARE_TABLES[int(piece_type)][int(color)][sq]

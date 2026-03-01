@@ -130,3 +130,14 @@ class TestBoardOperations:
         board = Board.initial()
         with pytest.raises(TypeError):
             hash(board)
+
+    def test_has_piece_and_piece_bitboard_track_updates(self) -> None:
+        board = Board.initial()
+
+        assert board.has_piece(Color.WHITE, PieceType.KING)
+        assert board.pieces_bitboard(Color.WHITE, PieceType.KING) == (1 << E1)
+
+        board[E1] = None
+
+        assert not board.has_piece(Color.WHITE, PieceType.KING)
+        assert board.pieces_bitboard(Color.WHITE, PieceType.KING) == 0

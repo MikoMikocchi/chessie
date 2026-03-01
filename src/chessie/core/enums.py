@@ -13,7 +13,7 @@ class Color(IntEnum):
 
     @property
     def opposite(self) -> Color:
-        return Color(1 - self.value)
+        return Color.BLACK if self is Color.WHITE else Color.WHITE
 
     def __str__(self) -> str:
         return self.name.lower()
