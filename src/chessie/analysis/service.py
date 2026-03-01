@@ -14,8 +14,8 @@ from chessie.analysis.models import (
 )
 from chessie.core.enums import Color, MoveFlag
 from chessie.core.notation import move_to_san, position_from_fen
-from chessie.engine import DefaultEngine, SearchLimits
-from chessie.engine.search import CancelCheck, IEngine
+from chessie.engine._default import DefaultEngine
+from chessie.engine.search import CancelCheck, IEngine, SearchLimits
 
 if TYPE_CHECKING:
     from chessie.game.state import MoveRecord

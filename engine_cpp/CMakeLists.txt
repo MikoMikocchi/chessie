@@ -71,5 +71,34 @@ if(BUILD_PYBIND)
     FetchContent_MakeAvailable(pybind11)
     pybind11_add_module(_chessie_engine bindings/pybind_module.cpp)
     target_link_libraries(_chessie_engine PRIVATE chessie_engine)
-    install(TARGETS _chessie_engine DESTINATION .)
+    # Install the extension alongside the Python package
+    install(TARGETS _chessie_engine DESTINATION chessie COMPONENT python)
+    # Install bundled assets so the wheel is self-contained
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../assets/
+            DESTINATION chessie/assets
+            COMPONENT python)
+endif()
+
+# ── Formatting (clang-format) ─────────────────────────────────────────────────
+find_program(CLANG_FORMAT clang-format)
+if(CLANG_FORMAT)
+    file(GLOB_RECURSE ALL_CXX_SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/bindings/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp)
+    add_custom_target(format
+        COMMAND ${CLANG_FORMAT} -i ${ALL_CXX_SOURCES}
+        COMMENT "Running clang-format (in-place)")
+    add_custom_target(format-check
+        COMMAND ${CLANG_FORMAT} --dry-run --Werror ${ALL_CXX_SOURCES}
+        COMMENT "Checking clang-format compliance")
+endif()
+
+# ── Linting (clang-tidy via compile_commands.json) ────────────────────────────
+find_program(CLANG_TIDY clang-tidy)
+if(CLANG_TIDY)
+    set(CMAKE_CXX_CLANG_TIDY
+        ${CLANG_TIDY}
+        --config-file=${CMAKE_CURRENT_SOURCE_DIR}/.clang-tidy)
 endif()

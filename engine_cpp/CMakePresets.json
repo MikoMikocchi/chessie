@@ -1,0 +1,74 @@
+{
+    "version": 6,
+    "configurePresets": [
+        {
+            "name": "debug",
+            "displayName": "Debug + ASAN",
+            "description": "Debug build with AddressSanitizer and tests",
+            "binaryDir": "${sourceDir}/build/debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "BUILD_TESTS": "ON",
+                "BUILD_PYBIND": "OFF",
+                "USE_ASAN": "ON"
+            }
+        },
+        {
+            "name": "ci",
+            "displayName": "CI (Debug, no ASAN)",
+            "description": "Debug build for CI environments where ASAN may be unavailable",
+            "binaryDir": "${sourceDir}/build/ci",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "BUILD_TESTS": "ON",
+                "BUILD_PYBIND": "OFF",
+                "USE_ASAN": "OFF"
+            }
+        },
+        {
+            "name": "release",
+            "displayName": "Release + pybind11",
+            "description": "Optimised release build with pybind11 module",
+            "binaryDir": "${sourceDir}/build/release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "BUILD_TESTS": "OFF",
+                "BUILD_PYBIND": "ON",
+                "USE_ASAN": "OFF"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "debug",
+            "configurePreset": "debug",
+            "jobs": 0
+        },
+        {
+            "name": "ci",
+            "configurePreset": "ci",
+            "jobs": 0
+        },
+        {
+            "name": "release",
+            "configurePreset": "release",
+            "jobs": 0
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "debug",
+            "configurePreset": "debug",
+            "output": {
+                "outputOnFailure": true
+            }
+        },
+        {
+            "name": "ci",
+            "configurePreset": "ci",
+            "output": {
+                "outputOnFailure": true
+            }
+        }
+    ]
+}

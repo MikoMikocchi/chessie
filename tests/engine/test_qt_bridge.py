@@ -52,7 +52,7 @@ class TestEngineWorker:
     def test_emits_cancelled_when_search_is_cancelled(self) -> None:
         position = position_from_fen(STARTING_FEN)
         worker = EngineWorker()
-        worker._engine = _CancellingEngine(worker)  # type: ignore[assignment]
+        worker._engine = _CancellingEngine(worker)
 
         cancelled = QSignalSpy(worker.search_cancelled)
         best_moves = QSignalSpy(worker.best_move_ready)
@@ -66,7 +66,7 @@ class TestEngineWorker:
     def test_emits_no_move_when_search_returns_none(self) -> None:
         position = position_from_fen(STARTING_FEN)
         worker = EngineWorker()
-        worker._engine = _NoMoveEngine()  # type: ignore[assignment]
+        worker._engine = _NoMoveEngine()
 
         no_move = QSignalSpy(worker.search_no_move)
         best_moves = QSignalSpy(worker.best_move_ready)

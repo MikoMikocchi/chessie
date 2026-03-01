@@ -21,7 +21,10 @@ if TYPE_CHECKING:
 try:
     import _chessie_engine
 except ImportError:
-    _chessie_engine = None
+    try:
+        from chessie import _chessie_engine  # type: ignore[attr-defined]
+    except ImportError:
+        _chessie_engine = None
 
 _PROMO_MAP: dict[str, PieceType] = {
     "n": PieceType.KNIGHT,

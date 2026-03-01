@@ -31,6 +31,33 @@ jobs:
       - name: Bandit check
         run: uv run bandit -c pyproject.toml -r src
 
+      - name: clang-format check
+        run: |
+          find engine_cpp -name '*.cpp' -o -name '*.hpp' | \
+            xargs clang-format --dry-run --Werror
+
+  cpp-tests:
+    name: C++ tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure (ci preset)
+        run: cmake --preset ci
+        working-directory: engine_cpp
+
+      - name: Build
+        run: cmake --build --preset ci
+
+      - name: Test
+        run: ctest --preset ci
+        working-directory: engine_cpp
+
   build:
     runs-on: ubuntu-latest
     steps:
@@ -43,7 +70,7 @@ jobs:
           enable-cache: true
           python-version: "3.13"
 
-      - name: Build project
+      - name: Build wheel
         run: uv build
 
   test:

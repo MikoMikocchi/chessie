@@ -7,7 +7,7 @@ import threading
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
 
 from chessie.core.position import Position
-from chessie.engine import DefaultEngine
+from chessie.engine._default import DefaultEngine
 from chessie.engine.search import SearchLimits
 
 

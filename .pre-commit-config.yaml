@@ -40,3 +40,10 @@ repos:
         exclude: ^assets/
       - id: mixed-line-ending
         args: [--fix=lf]
+
+  # ── C++: clang-format ────────────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v19.1.7
+    hooks:
+      - id: clang-format
+        files: 'engine_cpp/.*\.(cpp|hpp)$'
