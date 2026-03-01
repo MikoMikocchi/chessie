@@ -7,7 +7,7 @@ import threading
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
 
 from chessie.core.position import Position
-from chessie.engine.python_search import PythonSearchEngine
+from chessie.engine import DefaultEngine
 from chessie.engine.search import SearchLimits
 
 
@@ -28,7 +28,7 @@ class EngineWorker(QObject):
         time_limit_ms: int | None = 700,
     ) -> None:
         super().__init__()
-        self._engine = PythonSearchEngine()
+        self._engine = DefaultEngine()
         self._limits = SearchLimits(max_depth=max_depth, time_limit_ms=time_limit_ms)
         self._cancel_event = threading.Event()
 

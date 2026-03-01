@@ -14,7 +14,7 @@ from chessie.analysis.models import (
 )
 from chessie.core.enums import Color, MoveFlag
 from chessie.core.notation import move_to_san, position_from_fen
-from chessie.engine import PythonSearchEngine, SearchLimits
+from chessie.engine import DefaultEngine, SearchLimits
 from chessie.engine.search import CancelCheck, IEngine
 
 if TYPE_CHECKING:
@@ -54,7 +54,7 @@ class GameAnalyzer:
     __slots__ = ("_engine",)
 
     def __init__(self, engine: IEngine | None = None) -> None:
-        self._engine = engine or PythonSearchEngine()
+        self._engine = engine or DefaultEngine()
 
     def analyze_game(
         self,
