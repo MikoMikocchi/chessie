@@ -17,7 +17,7 @@ git clone https://github.com/MikoMikocchi/chessie.git
 cd chessie
 ```
 
-3. Create a virtual environment and install dependencies:
+3. Create a virtual environment, install dependencies, and build the C++ extension:
 
 ```bash
 uv sync --all-groups
@@ -29,6 +29,16 @@ uv sync --all-groups
 uv run pre-commit install
 ```
 
+### C++ Engine Setup (Optional)
+
+The C++ engine is located in the `engine_cpp/` directory. While `uv sync` manages the Python extension build automatically, you might want to configure the C++ engine to compile and run the engine's suite of unit tests directly:
+
+```bash
+cd engine_cpp
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
+cmake --build build
+```
+
 ## Running the App
 
 ```bash
@@ -36,6 +46,8 @@ uv run chessie
 ```
 
 ## Running Tests
+
+### Python Tests
 
 Run the full test suite:
 
@@ -53,6 +65,15 @@ On Linux, GUI tests may require an X server. If needed, run tests with `xvfb`:
 
 ```bash
 xvfb-run --auto-servernum --server-args="-screen 0 1024x768x24" uv run pytest --cov=src --cov-report=term-missing
+```
+
+### C++ Engine Tests
+
+To run the Google Test suite for the C++ engine:
+
+```bash
+cd engine_cpp/build
+ctest --output-on-failure
 ```
 
 ## Quality Checks
@@ -73,18 +94,25 @@ You can also run all pre-commit hooks manually:
 uv run pre-commit run --all-files
 ```
 
+If you are modifying the C++ engine, please ensure the code is formatted using `clang-format`.
+
 ## Project Layout
 
+- `engine_cpp/`: The Core C++20 engine codebase.
+  - `include/chessie/`: C++ header files.
+  - `src/`: C++ source files.
+  - `bindings/`: `pybind11` bridge logic.
+  - `tests/`: C++ Google Test suite.
 - `src/chessie/core`: chess rules, board state, move generation, and notation
 - `src/chessie/game`: game flow, clock, and controller logic
-- `src/chessie/engine`: engine/search integration
+- `src/chessie/engine`: engine/search integration for Python
 - `src/chessie/ui`: PyQt6 UI and related components
-- `tests`: unit and integration tests mirroring source modules
+- `tests`: unit and integration tests mirroring Python source modules
 
 ## Pull Requests
 
 1. Keep changes focused and small when possible.
-2. Add or update tests for behavioral changes.
+2. Add or update tests for behavioral changes (both C++ and Python side, if applicable).
 3. Update documentation when behavior or developer workflow changes.
 4. Ensure all checks pass locally before opening the PR.
 5. In your PR description, explain what changed, why it changed, and how it was tested.
