@@ -155,6 +155,16 @@ def setup_menu(host: Any) -> None:
     host._act_settings.triggered.connect(host._on_settings)
     host._menu_settings.addAction(host._act_settings)
 
+    # Help menu
+    host._menu_help = menu_bar.addMenu(s.menu_help)
+    assert host._menu_help is not None
+
+    host._act_manual = QAction(s.menu_manual, host)
+    host._act_manual.setShortcut("F1")
+    host._act_manual.setMenuRole(QAction.MenuRole.NoRole)
+    host._act_manual.triggered.connect(host._on_manual)
+    host._menu_help.addAction(host._act_manual)
+
 
 def retranslate_ui(host: Any) -> None:
     """Update all translatable strings when the locale changes."""
@@ -172,6 +182,8 @@ def retranslate_ui(host: Any) -> None:
     host._act_quit.setText(s.menu_quit)
     host._menu_settings.setTitle(s.menu_settings)
     host._act_settings.setText(s.menu_settings_action)
+    host._menu_help.setTitle(s.menu_help)
+    host._act_manual.setText(s.menu_manual)
 
     # Child widgets
     host._move_panel.retranslate_ui()

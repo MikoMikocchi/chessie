@@ -16,6 +16,7 @@ from chessie.game.interfaces import GameEndReason, GamePhase
 from chessie.game.player import AIPlayer
 from chessie.game.state import GameState
 from chessie.ui.analysis_session import AnalysisSession
+from chessie.ui.dialogs.manual_dialog import ManualDialog
 from chessie.ui.dialogs.settings_dialog import AppSettings, SettingsDialog
 from chessie.ui.engine_session import EngineSession
 from chessie.ui.game_sync import GameSync
@@ -53,6 +54,8 @@ class MainWindow(QMainWindow):
     _act_flip: Any
     _act_quit: Any
     _act_settings: Any
+    _menu_help: Any
+    _act_manual: Any
 
     def __init__(self) -> None:
         super().__init__()
@@ -68,6 +71,7 @@ class MainWindow(QMainWindow):
         self._history_view_ply: int | None = None
         self._analysis_report: Any = None
         self._analysis_mode: bool = False
+        self._manual_dialog: ManualDialog | None = None
 
         self._setup_ui()
 
@@ -211,11 +215,21 @@ class MainWindow(QMainWindow):
     def _on_settings(self) -> None:
         settings_part.on_settings(self, settings_dialog_cls=SettingsDialog)
 
+    def _on_manual(self) -> None:
+        if self._manual_dialog is None:
+            self._manual_dialog = ManualDialog.show_manual(self)
+            return
+        self._manual_dialog.show()
+        self._manual_dialog.raise_()
+        self._manual_dialog.activateWindow()
+
     def _apply_settings(self) -> None:
         settings_part.apply_settings(self)
 
     def retranslate_ui(self) -> None:
         ui_part.retranslate_ui(self)
+        if self._manual_dialog is not None:
+            self._manual_dialog.retranslate_ui()
 
     # ── Game event callbacks ─────────────────────────────────────────────
 

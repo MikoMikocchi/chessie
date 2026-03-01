@@ -145,6 +145,13 @@ class Strings:
     analysis_move_title: str
     analysis_exit: str
 
+    # ── ManualDialog ──────────────────────────────────────────────────────
+    menu_help: str
+    menu_manual: str
+    manual_title: str
+    manual_toc: str
+    manual_page_of: str
+
 
 # ── Built-in locales ─────────────────────────────────────────────────────────
 
@@ -245,6 +252,11 @@ _EN = Strings(
     analysis_col_verdict="Verdict",
     analysis_move_title="Move",
     analysis_exit="Exit Analysis",
+    menu_help="&Help",
+    menu_manual="&Chess Manual...",
+    manual_title="Chess Manual",
+    manual_toc="Table of Contents",
+    manual_page_of="Page {current} of {total}",
 )
 
 _RU = Strings(
@@ -344,6 +356,11 @@ _RU = Strings(
     analysis_col_verdict="Оценка",
     analysis_move_title="Ход",
     analysis_exit="Выйти из анализа",
+    menu_help="&Справка",
+    menu_manual="&Учебник шахмат...",
+    manual_title="Учебник шахмат",
+    manual_toc="Содержание",
+    manual_page_of="Стр. {current} из {total}",
 )
 
 _LOCALES: dict[str, Strings] = {
@@ -354,6 +371,7 @@ _LOCALES: dict[str, Strings] = {
 LANGUAGES: list[str] = list(_LOCALES.keys())
 
 _current: Strings = _EN
+_current_lang: str = "English"
 
 
 def t() -> Strings:
@@ -361,7 +379,13 @@ def t() -> Strings:
     return _current
 
 
+def current_language() -> str:
+    """Return the name of the active language (e.g. ``'English'``)."""
+    return _current_lang
+
+
 def set_language(language: str) -> None:
     """Switch the global locale. Unknown names fall back to English."""
-    global _current
+    global _current, _current_lang
     _current = _LOCALES.get(language, _EN)
+    _current_lang = language if language in _LOCALES else "English"
