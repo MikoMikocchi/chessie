@@ -53,6 +53,7 @@ jobs:
 
       - name: Build
         run: cmake --build --preset ci
+        working-directory: engine_cpp
 
       - name: Test
         run: ctest --preset ci

@@ -14,12 +14,22 @@ option(BUILD_PYBIND "Build pybind11 module"   OFF)
 option(USE_ASAN     "Enable AddressSanitizer" OFF)
 
 # ── Compiler flags ───────────────────────────────────────────────────────────
-add_compile_options(
-    -Wall -Wextra -Wpedantic -Werror
-    $<$<CONFIG:Release>:-march=native>
-    $<$<BOOL:${USE_ASAN}>:-fsanitize=address>
-)
-add_link_options($<$<BOOL:${USE_ASAN}>:-fsanitize=address>)
+if(MSVC)
+    add_compile_options(/W4 /WX)
+else()
+    add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+    add_compile_options($<$<CONFIG:Release>:-march=native>)
+endif()
+
+if(USE_ASAN)
+    if(MSVC)
+        add_compile_options(/fsanitize=address)
+        add_link_options(/fsanitize=address)
+    else()
+        add_compile_options(-fsanitize=address)
+        add_link_options(-fsanitize=address)
+    endif()
+endif()
 
 # ── Engine library ───────────────────────────────────────────────────────────
 file(GLOB_RECURSE ENGINE_SOURCES src/*.cpp)
