@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from time import perf_counter, sleep
 
 from chessie.core.enums import Color, MoveFlag, PieceType
@@ -10,7 +9,42 @@ from chessie.core.move import Move
 from chessie.core.move_generator import MoveGenerator
 from chessie.core.position import Position
 from chessie.core.rules import Rules
-from chessie.core.types import Square, file_of, rank_of
+from chessie.core.types import Square
+from chessie.engine.python_search_eval import (
+    PIECE_VALUES as _EVAL_PIECE_VALUES,
+)
+from chessie.engine.python_search_eval import (
+    piece_square_bonus as _eval_piece_square_bonus,
+)
+from chessie.engine.python_search_eval import (
+    piece_square_delta as _eval_piece_square_delta,
+)
+from chessie.engine.python_search_eval import (
+    static_eval as _eval_static,
+)
+from chessie.engine.python_search_ordering import (
+    MAX_KILLER_PLY,
+)
+from chessie.engine.python_search_ordering import (
+    history_score as _ordering_history_score,
+)
+from chessie.engine.python_search_ordering import (
+    killer_score as _ordering_killer_score,
+)
+from chessie.engine.python_search_ordering import (
+    move_order_score as _ordering_move_order_score,
+)
+from chessie.engine.python_search_ordering import (
+    record_killer as _ordering_record_killer,
+)
+from chessie.engine.python_search_ordering import (
+    reset_heuristics as _ordering_reset_heuristics,
+)
+from chessie.engine.python_search_ordering import (
+    update_history as _ordering_update_history,
+)
+from chessie.engine.python_search_types import NullMoveState as _NullMoveState
+from chessie.engine.python_search_types import TTEntry as _TTEntry
 from chessie.engine.search import CancelCheck, IEngine, SearchLimits, SearchResult
 
 _INF_SCORE = 1_000_000
@@ -18,94 +52,18 @@ _MATE_SCORE = 100_000
 _TT_EXACT = 0
 _TT_LOWER = 1
 _TT_UPPER = 2
-_MAX_KILLER_PLY = 128
-_KILLER_PRIMARY_BONUS = 9_000
-_KILLER_SECONDARY_BONUS = 8_000
-_HISTORY_BONUS_FACTOR = 32
-_HISTORY_MAX_SCORE = 8_000
 _NULL_MOVE_MIN_DEPTH = 3
 _NULL_MOVE_REDUCTION = 2
 _LMR_MIN_DEPTH = 4
 _LMR_MIN_MOVE_INDEX = 3
 _QUIESCENCE_MAX_DEPTH = 16
 
-_PIECE_VALUES: dict[PieceType, int] = {
-    PieceType.PAWN: 100,
-    PieceType.KNIGHT: 320,
-    PieceType.BISHOP: 330,
-    PieceType.ROOK: 500,
-    PieceType.QUEEN: 900,
-    PieceType.KING: 0,
-}
-
-
-def _piece_square_bonus_formula(
-    piece_type: PieceType,
-    color: Color,
-    sq: Square,
-) -> int:
-    """Compute piece-square bonus for one piece on one square."""
-    file_idx = file_of(sq)
-    rank_idx = rank_of(sq)
-    if color == Color.BLACK:
-        rank_idx = 7 - rank_idx
-
-    center_dist = abs(file_idx - 3) + abs(rank_idx - 3)
-
-    if piece_type == PieceType.PAWN:
-        return rank_idx * 12 - abs(file_idx - 3) * 2
-    if piece_type == PieceType.KNIGHT:
-        return 28 - center_dist * 8
-    if piece_type == PieceType.BISHOP:
-        return 22 - center_dist * 5 + rank_idx * 2
-    if piece_type == PieceType.ROOK:
-        return 10 + rank_idx * 3 - abs(file_idx - 3)
-    if piece_type == PieceType.QUEEN:
-        return 6 - center_dist * 2
-
-    # King: favor safety in opening/middlegame.
-    if rank_idx <= 1:
-        return 18 - abs(file_idx - 4) * 2
-    return -rank_idx * 8
-
-
-def _build_piece_square_tables() -> list[list[list[int]]]:
-    """[piece_type][color][square] -> piece-square bonus."""
-    tables = [[[0 for _ in range(64)] for _ in range(2)] for _ in range(7)]
-    for piece_type in PieceType:
-        pt_idx = int(piece_type)
-        for color in Color:
-            color_idx = int(color)
-            for sq in range(64):
-                tables[pt_idx][color_idx][sq] = _piece_square_bonus_formula(
-                    piece_type,
-                    color,
-                    sq,
-                )
-    return tables
-
-
-_PIECE_SQUARE_TABLES = _build_piece_square_tables()
+_MAX_KILLER_PLY = MAX_KILLER_PLY
+_PIECE_VALUES = _EVAL_PIECE_VALUES
 
 
 def _never_cancelled() -> bool:
     return False
-
-
-@dataclass(slots=True)
-class _TTEntry:
-    depth: int
-    score: int
-    bound: int
-    best_move: Move | None
-
-
-@dataclass(slots=True)
-class _NullMoveState:
-    side_to_move: Color
-    en_passant: Square | None
-    halfmove_clock: int
-    fullmove_number: int
 
 
 class PythonSearchEngine(IEngine):
@@ -129,12 +87,7 @@ class PythonSearchEngine(IEngine):
         self._cancel_check: CancelCheck = _never_cancelled
         self._tt: dict[int, _TTEntry] = {}
         self._tt_max_entries = 200_000
-        self._killer_moves: list[list[Move | None]] = [
-            [None, None] for _ in range(_MAX_KILLER_PLY)
-        ]
-        self._history_scores: list[list[list[int]]] = [
-            [[0 for _ in range(64)] for _ in range(64)] for _ in range(2)
-        ]
+        self._killer_moves, self._history_scores = _ordering_reset_heuristics()
 
     def search(
         self,
@@ -433,41 +386,18 @@ class PythonSearchEngine(IEngine):
         tt_move: Move | None = None,
         ply: int = 0,
     ) -> int:
-        moving_piece = position.board[move.from_sq]
-        if moving_piece is None:
-            return -_INF_SCORE
-
-        is_quiet = self._is_quiet_move(position, move)
-        score = 0
-        if tt_move is not None and move == tt_move:
-            score += 100_000
-
-        if move.flag == MoveFlag.PROMOTION and move.promotion is not None:
-            score += 20_000 + _PIECE_VALUES[move.promotion]
-
-        target_piece = position.board[move.to_sq]
-        if target_piece is not None:
-            score += 10_000
-            score += 10 * _PIECE_VALUES[target_piece.piece_type]
-            score -= _PIECE_VALUES[moving_piece.piece_type]
-        elif move.flag == MoveFlag.EN_PASSANT:
-            score += 10_000
-            score += 10 * _PIECE_VALUES[PieceType.PAWN]
-            score -= _PIECE_VALUES[moving_piece.piece_type]
-        elif is_quiet:
-            score += self._killer_score(move, ply)
-            score += self._history_score(position.side_to_move, move)
-
-        if move.flag in (MoveFlag.CASTLE_KINGSIDE, MoveFlag.CASTLE_QUEENSIDE):
-            score += 120
-
-        score += self._piece_square_delta(
-            moving_piece.piece_type,
-            moving_piece.color,
-            move.from_sq,
-            move.to_sq,
+        return _ordering_move_order_score(
+            position=position,
+            move=move,
+            tt_move=tt_move,
+            ply=ply,
+            killer_moves=self._killer_moves,
+            history_scores=self._history_scores,
+            piece_values=_PIECE_VALUES,
+            is_quiet_move=self._is_quiet_move,
+            piece_square_delta=self._piece_square_delta,
+            inf_score=_INF_SCORE,
         )
-        return score
 
     def _store_tt(
         self,
@@ -577,72 +507,22 @@ class PythonSearchEngine(IEngine):
         return position.board[move.to_sq] is None
 
     def _reset_move_order_heuristics(self) -> None:
-        self._killer_moves = [[None, None] for _ in range(_MAX_KILLER_PLY)]
-        self._history_scores = [
-            [[0 for _ in range(64)] for _ in range(64)] for _ in range(2)
-        ]
+        self._killer_moves, self._history_scores = _ordering_reset_heuristics()
 
     def _record_killer(self, move: Move, ply: int) -> None:
-        if ply < 0 or ply >= len(self._killer_moves):
-            return
-        killers = self._killer_moves[ply]
-        if killers[0] == move:
-            return
-        killers[1] = killers[0]
-        killers[0] = move
+        _ordering_record_killer(self._killer_moves, move, ply)
 
     def _killer_score(self, move: Move, ply: int) -> int:
-        if ply < 0 or ply >= len(self._killer_moves):
-            return 0
-        killers = self._killer_moves[ply]
-        if killers[0] == move:
-            return _KILLER_PRIMARY_BONUS
-        if killers[1] == move:
-            return _KILLER_SECONDARY_BONUS
-        return 0
+        return _ordering_killer_score(self._killer_moves, move, ply)
 
     def _history_score(self, side: Color, move: Move) -> int:
-        return self._history_scores[int(side)][move.from_sq][move.to_sq]
+        return _ordering_history_score(self._history_scores, side, move)
 
     def _update_history(self, side: Color, move: Move, depth: int) -> None:
-        bonus = max(depth, 1) * max(depth, 1) * _HISTORY_BONUS_FACTOR
-        side_scores = self._history_scores[int(side)]
-        current = side_scores[move.from_sq][move.to_sq]
-        side_scores[move.from_sq][move.to_sq] = min(_HISTORY_MAX_SCORE, current + bonus)
+        _ordering_update_history(self._history_scores, side, move, depth)
 
     def _static_eval(self, position: Position) -> int:
-        board = position.board
-        piece_values = _PIECE_VALUES
-        pst = _PIECE_SQUARE_TABLES
-        white_idx = int(Color.WHITE)
-        black_idx = int(Color.BLACK)
-
-        white_score = 0
-        black_score = 0
-
-        for piece_type, material in piece_values.items():
-            pt_idx = int(piece_type)
-            white_table = pst[pt_idx][white_idx]
-            black_table = pst[pt_idx][black_idx]
-
-            white_bb = board.pieces_bitboard(Color.WHITE, piece_type)
-            while white_bb:
-                lsb = white_bb & -white_bb
-                sq = lsb.bit_length() - 1
-                white_score += material + white_table[sq]
-                white_bb ^= lsb
-
-            black_bb = board.pieces_bitboard(Color.BLACK, piece_type)
-            while black_bb:
-                lsb = black_bb & -black_bb
-                sq = lsb.bit_length() - 1
-                black_score += material + black_table[sq]
-                black_bb ^= lsb
-
-        score = white_score - black_score
-        if position.side_to_move == Color.WHITE:
-            return score
-        return -score
+        return _eval_static(position)
 
     def _piece_square_delta(
         self,
@@ -651,8 +531,7 @@ class PythonSearchEngine(IEngine):
         from_sq: Square,
         to_sq: Square,
     ) -> int:
-        table = _PIECE_SQUARE_TABLES[int(piece_type)][int(color)]
-        return table[to_sq] - table[from_sq]
+        return _eval_piece_square_delta(piece_type, color, from_sq, to_sq)
 
     def _piece_square_bonus(
         self,
@@ -660,4 +539,4 @@ class PythonSearchEngine(IEngine):
         color: Color,
         sq: Square,
     ) -> int:
-        return _PIECE_SQUARE_TABLES[int(piece_type)][int(color)][sq]
+        return _eval_piece_square_bonus(piece_type, color, sq)
