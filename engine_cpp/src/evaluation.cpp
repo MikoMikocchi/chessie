@@ -4,9 +4,8 @@
 /// PST values are based on the PeSTO evaluation tables by Ronald Friederich,
 /// which are widely used in open-source chess engines.
 
-#include <chessie/evaluation.hpp>
-
 #include <chessie/bitboard.hpp>
+#include <chessie/evaluation.hpp>
 
 namespace chessie::eval {
 
@@ -204,7 +203,8 @@ int evaluate(const Position& pos) {
     }
 
     // Clamp phase to [0, kTotalPhase].
-    if (phase > kTotalPhase) phase = kTotalPhase;
+    if (phase > kTotalPhase)
+        phase = kTotalPhase;
 
     // Tapered eval: interpolate between middlegame and endgame.
     // phase == kTotalPhase → pure middlegame; phase == 0 → pure endgame.
