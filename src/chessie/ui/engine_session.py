@@ -39,6 +39,7 @@ class EngineSession:
     """Owns worker-thread search lifecycle and move handoff to controller."""
 
     _REQUEST_DELAY_MS = 50
+    _MOVE_APPLY_DELAY_MS = 200
     _MAX_FAILURE_RETRIES = 1
 
     __slots__ = (
@@ -50,6 +51,9 @@ class EngineSession:
         "_sync_board_interactivity",
         "_command_bus",
         "_dispatch_timer",
+        "_move_apply_timer",
+        "_pending_move",
+        "_pending_move_white_cp",
         "_engine_thread",
         "_engine_worker",
         "_engine_request_id",
@@ -83,6 +87,12 @@ class EngineSession:
         self._dispatch_timer = QTimer(parent)
         self._dispatch_timer.setSingleShot(True)
         self._dispatch_timer.timeout.connect(self._emit_pending_request)
+
+        self._move_apply_timer = QTimer(parent)
+        self._move_apply_timer.setSingleShot(True)
+        self._move_apply_timer.timeout.connect(self._apply_delayed_move)
+        self._pending_move: Move | None = None
+        self._pending_move_white_cp = 0
 
         self._engine_thread = QThread(parent)
         self._engine_worker = EngineWorker(
@@ -149,7 +159,10 @@ class EngineSession:
     def cancel_ai_search(self) -> None:
         """Cancel any pending/active engine request."""
         self._dispatch_timer.stop()
+        self._move_apply_timer.stop()
         self._clear_pending_request()
+        self._pending_move = None
+        self._pending_move_white_cp = 0
         if self._is_started:
             self._command_bus.cancel_requested.emit()
 
@@ -179,13 +192,29 @@ class EngineSession:
 
         self._clear_pending_request()
         self._remaining_failure_retries = 0
-        ok = self._controller.submit_move(move_obj)
-        if ok:
-            self._set_eval(float(white_cp))
+
+        # Update eval immediately
+        self._set_eval(float(white_cp))
+
+        # Store the move and schedule it with a delay to allow animations to complete
+        self._pending_move = move_obj
+        self._pending_move_white_cp = white_cp
         self._sync_board_interactivity()
+        self._move_apply_timer.start(self._MOVE_APPLY_DELAY_MS)
 
     def _on_engine_error(self, request_id: int, message: str) -> None:
         self._handle_engine_failure(request_id, message)
+
+    def _apply_delayed_move(self) -> None:
+        """Apply the pending move after animation delay."""
+        if self._is_shutting_down or self._pending_move is None:
+            return
+
+        ok = self._controller.submit_move(self._pending_move)
+        if ok:
+            self._sync_board_interactivity()
+        self._pending_move = None
+        self._pending_move_white_cp = 0
 
     def _on_engine_no_move(
         self,
