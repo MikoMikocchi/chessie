@@ -64,3 +64,13 @@ uv run chessie
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed instructions on the development setup, running tests (both Python and C++), and our code of conduct.
+
+## Support & Reporting Issues
+
+If you encounter bugs or have feature requests, please open an issue on
+GitHub: https://github.com/MikoMikocchi/chessie/issues. For quick questions,
+join the discussions tab.
+
+## License
+
+Chessie is released under the [Apache License 2.0](LICENSE).
