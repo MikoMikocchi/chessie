@@ -62,7 +62,13 @@ endif()
 
 # ── pybind11 module ──────────────────────────────────────────────────────────
 if(BUILD_PYBIND)
-    find_package(pybind11 REQUIRED)
+    include(FetchContent)
+    FetchContent_Declare(
+        pybind11
+        GIT_REPOSITORY https://github.com/pybind/pybind11.git
+        GIT_TAG        v2.13.6
+    )
+    FetchContent_MakeAvailable(pybind11)
     pybind11_add_module(_chessie_engine bindings/pybind_module.cpp)
     target_link_libraries(_chessie_engine PRIVATE chessie_engine)
     install(TARGETS _chessie_engine DESTINATION .)
