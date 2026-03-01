@@ -1,4 +1,6 @@
 {
     "version": 6,
-    "include": ["./engine_cpp/CMakePresets.json"]
+    "include": [
+        "./engine_cpp/CMakePresets.json"
+    ]
 }
