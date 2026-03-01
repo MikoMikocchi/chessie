@@ -7,7 +7,12 @@ from typing import Any
 
 from PyQt6.QtGui import QColor
 
-from chessie.analysis import GameAnalysisReport, MoveAnalysis, MoveJudgment
+from chessie.analysis import (
+    GameAnalysisReport,
+    MoveAnalysis,
+    MoveJudgment,
+    compute_move_fingerprint,
+)
 from chessie.ui.i18n import t
 
 
@@ -23,6 +28,9 @@ def on_analyze_game(host: Any, *, message_box_cls: type[Any]) -> None:
         cached is not None
         and cached.start_fen == state.start_fen
         and cached.total_plies == len(state.move_history)
+        and cached.move_fingerprint
+        and cached.move_fingerprint
+        == compute_move_fingerprint(state.start_fen, state.move_history)
     ):
         _enter_analysis_mode(host, cached)
         host._status_label.setText(
@@ -87,6 +95,11 @@ def on_analysis_finished(
     if (
         state.start_fen == report.start_fen
         and len(state.move_history) == report.total_plies
+        and (
+            not report.move_fingerprint
+            or report.move_fingerprint
+            == compute_move_fingerprint(state.start_fen, state.move_history)
+        )
     ):
         host._pgn_move_comments = _merge_analysis_comments(
             host._pgn_move_comments,

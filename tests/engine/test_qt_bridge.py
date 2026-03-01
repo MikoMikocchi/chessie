@@ -78,3 +78,31 @@ class TestEngineWorker:
         assert no_move[0][0] == 11
         assert len(best_moves) == 0
         assert len(errors) == 0
+
+    def test_cancel_calls_engine_cancel_if_available(self) -> None:
+        """EngineWorker.cancel() should call engine.cancel() when present."""
+
+        class _CancellableEngine:
+            def __init__(self) -> None:
+                self.cancel_called = False
+
+            def cancel(self) -> None:
+                self.cancel_called = True
+
+            def search(
+                self,
+                _position: Position,
+                _limits: SearchLimits,
+                is_cancelled: CancelCheck | None = None,
+            ) -> SearchResult:
+                del is_cancelled
+                return SearchResult(best_move=None, score_cp=0, depth=0, nodes=0)
+
+        worker = EngineWorker()
+        cancellable = _CancellableEngine()
+        worker._engine = cancellable
+
+        worker.cancel()
+
+        assert worker._cancel_event.is_set()
+        assert cancellable.cancel_called

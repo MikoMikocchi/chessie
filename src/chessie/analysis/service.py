@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -104,7 +105,14 @@ class GameAnalyzer:
             after_for_mover = (
                 after_white_cp if mover == Color.WHITE else -after_white_cp
             )
-            cp_loss = max(0, best_for_mover - after_for_mover)
+
+            # If the played move IS the engine's best move, cp_loss is 0
+            # regardless of search noise between different evaluations.
+            if best_move is not None and record.move == best_move:
+                cp_loss = 0
+            else:
+                raw_loss = _clamp_cp(best_for_mover) - _clamp_cp(after_for_mover)
+                cp_loss = max(0, raw_loss)
             judgment = _classify_cp_loss(cp_loss)
 
             analyses.append(
@@ -139,6 +147,8 @@ class GameAnalyzer:
             if a.cp_loss > 0
         )
 
+        fingerprint = _compute_move_fingerprint(start_fen, history)
+
         return GameAnalysisReport(
             start_fen=start_fen,
             total_plies=total,
@@ -146,11 +156,47 @@ class GameAnalyzer:
             white=white_summary,
             black=black_summary,
             critical_plies=critical,
+            move_fingerprint=fingerprint,
         )
 
 
 def _to_white_cp(score_cp: int, side_to_move: Color) -> int:
     return score_cp if side_to_move == Color.WHITE else -score_cp
+
+
+# Cap centipawn values so mate scores don't blow up ACPL/accuracy.
+_CP_CAP = 1500
+
+
+def _clamp_cp(cp: int) -> int:
+    """Clamp a centipawn value to ±_CP_CAP to bound mate-score effects."""
+    return max(-_CP_CAP, min(_CP_CAP, cp))
+
+
+def _compute_move_fingerprint(
+    start_fen: str,
+    history: list[MoveRecord],
+) -> str:
+    """Compute a content-based fingerprint for the game move sequence.
+
+    Uses the FEN after each move (which encodes the full board state)
+    together with the starting FEN to produce a deterministic hash.
+    """
+    h = hashlib.sha256(start_fen.encode(), usedforsecurity=False)
+    for rec in history:
+        h.update(rec.fen_after.encode())
+    return h.hexdigest()
+
+
+def compute_move_fingerprint(
+    start_fen: str,
+    history: Iterable[MoveRecord],
+) -> str:
+    """Public helper: compute the fingerprint for cache validation."""
+    h = hashlib.sha256(start_fen.encode(), usedforsecurity=False)
+    for rec in history:
+        h.update(rec.fen_after.encode())
+    return h.hexdigest()
 
 
 def _analysis_limits_for_position(
@@ -190,12 +236,12 @@ def _classify_cp_loss(
     *,
     is_sacrifice: bool = False,
 ) -> MoveJudgment:
-    if cp_loss <= _BRILLIANT_MAX_CP_LOSS and is_sacrifice:
-        return MoveJudgment.BRILLIANT
-    if cp_loss <= _GREAT_MAX_CP_LOSS:
-        return MoveJudgment.GREAT
     if cp_loss <= _BEST_MAX_CP_LOSS:
-        return MoveJudgment.BEST
+        if cp_loss <= _BRILLIANT_MAX_CP_LOSS and is_sacrifice:
+            return MoveJudgment.BRILLIANT
+        if cp_loss <= _GREAT_MAX_CP_LOSS:
+            return MoveJudgment.BEST
+        return MoveJudgment.GREAT
     if cp_loss <= _GOOD_MAX_CP_LOSS:
         return MoveJudgment.GOOD
     if cp_loss <= _INACCURACY_MAX_CP_LOSS:
@@ -226,7 +272,7 @@ def _build_side_summary(analyses: Iterable[MoveAnalysis]) -> SideAnalysisSummary
             acc.blunders += 1
 
     avg = (acc.cp_loss_sum / acc.moves) if acc.moves > 0 else 0.0
-    accuracy = max(0.0, 100.0 - avg * 0.1) if acc.moves > 0 else 100.0
+    accuracy = _accuracy_from_avg_cp_loss(avg) if acc.moves > 0 else 100.0
     return SideAnalysisSummary(
         moves=acc.moves,
         avg_cp_loss=avg,
@@ -239,3 +285,18 @@ def _build_side_summary(analyses: Iterable[MoveAnalysis]) -> SideAnalysisSummary
         good=acc.good,
         accuracy=accuracy,
     )
+
+
+def _accuracy_from_avg_cp_loss(avg_cp_loss: float) -> float:
+    """Convert average centipawn loss to an accuracy percentage.
+
+    Uses a win-probability-inspired formula that is more robust than a
+    linear mapping.  ``103.1668 * exp(-0.04354 * ACPL) - 3.1669`` is a
+    well-known approximation (Lichess / chess.com style).
+    """
+    import math
+
+    if avg_cp_loss <= 0:
+        return 100.0
+    raw = 103.1668 * math.exp(-0.04354 * avg_cp_loss) - 3.1669
+    return max(0.0, min(100.0, raw))

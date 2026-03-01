@@ -6,7 +6,11 @@ from chessie.analysis.models import (
     MoveJudgment,
     SideAnalysisSummary,
 )
-from chessie.analysis.service import AnalysisCancelled, GameAnalyzer
+from chessie.analysis.service import (
+    AnalysisCancelled,
+    GameAnalyzer,
+    compute_move_fingerprint,
+)
 
 __all__ = [
     "AnalysisCancelled",
@@ -15,4 +19,5 @@ __all__ = [
     "MoveAnalysis",
     "MoveJudgment",
     "SideAnalysisSummary",
+    "compute_move_fingerprint",
 ]

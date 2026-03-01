@@ -82,6 +82,9 @@ class _AnalysisWorker(QObject):
     @pyqtSlot()
     def cancel(self) -> None:
         self._cancel_event.set()
+        engine = self._analyzer._engine
+        if hasattr(engine, "cancel"):
+            engine.cancel()
 
 
 class AnalysisSession:

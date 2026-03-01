@@ -63,6 +63,14 @@ def after_new_game(host: Any) -> None:
 def on_game_move(host: Any, move: Move, state: GameState) -> None:
     """Handle post-move synchronization for both human and AI moves."""
     host._history_view_ply = None
+
+    # Invalidate stale analysis report since the game has diverged.
+    if getattr(host, "_analysis_mode", False):
+        from chessie.ui.main_window_parts import analysis as analysis_part
+
+        analysis_part.on_exit_analysis(host)
+    host._analysis_report = None
+
     host._pgn_move_comments = host._game_sync.on_game_move(
         move,
         state,

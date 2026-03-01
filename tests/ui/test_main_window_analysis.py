@@ -11,6 +11,7 @@ from chessie.analysis import (
     MoveAnalysis,
     MoveJudgment,
     SideAnalysisSummary,
+    compute_move_fingerprint,
 )
 from chessie.core.enums import Color
 from chessie.core.move import Move
@@ -272,3 +273,91 @@ class TestMainWindowAnalysisActions:
         assert exit_btn.visible is False
         assert clock_widget.visible is True
         assert control_panel.visible is True
+
+    def test_stale_cache_not_reused_after_different_moves(self) -> None:
+        """Cache must not be reused when move sequence differs despite same length."""
+        from chessie.game.state import GameState
+
+        # Build a history with e4
+        state = GameState()
+        state.setup()
+        state.apply_move(Move(parse_square("e2"), parse_square("e4")))
+        fp_e4 = compute_move_fingerprint(state.start_fen, state.move_history)
+
+        # Build a cached report that matches e4's game
+        cached_report = GameAnalysisReport(
+            start_fen=state.start_fen,
+            total_plies=1,
+            moves=_report().moves,
+            white=SideAnalysisSummary(1, 0.0, 0, 0, 0),
+            black=SideAnalysisSummary(0, 0.0, 0, 0, 0),
+            critical_plies=(),
+            move_fingerprint=fp_e4,
+        )
+
+        # Now create a different history (d4) with the same length
+        state2 = GameState()
+        state2.setup()
+        state2.apply_move(Move(parse_square("d2"), parse_square("d4")))
+
+        analysis_session = _AnalysisSessionStub(should_start=True)
+        status_updates: list[str] = []
+
+        window = cast(
+            MainWindow,
+            SimpleNamespace(
+                _controller=SimpleNamespace(
+                    state=SimpleNamespace(
+                        move_history=state2.move_history,
+                        start_fen=state2.start_fen,
+                    )
+                ),
+                _analysis_session=analysis_session,
+                _settings=SimpleNamespace(
+                    analysis_depth=4,
+                    analysis_time_ms=200,
+                ),
+                _act_analyze_game=_ActionStub(),
+                _status_label=SimpleNamespace(
+                    setText=lambda text: status_updates.append(text)
+                ),
+                _analysis_report=cached_report,
+            ),
+        )
+
+        from chessie.ui.main_window_parts import analysis as analysis_part
+
+        analysis_part.on_analyze_game(window, message_box_cls=type(None))
+
+        # Should have started a new analysis, NOT reused cache
+        assert analysis_session.calls, "Expected a new analysis to be started"
+
+
+class TestAnalysisPanelGood:
+    """Verify AnalysisPanel includes GOOD in judgment rows."""
+
+    def test_good_row_exists_in_both_columns(self, qapp: object) -> None:
+        del qapp
+        from chessie.ui.panels.analysis_panel import AnalysisPanel
+
+        panel = AnalysisPanel()
+        assert MoveJudgment.GOOD in panel._white_rows
+        assert MoveJudgment.GOOD in panel._black_rows
+
+    def test_good_count_populated(self, qapp: object) -> None:
+        del qapp
+        from chessie.ui.panels.analysis_panel import AnalysisPanel
+
+        panel = AnalysisPanel()
+        report = GameAnalysisReport(
+            start_fen="fen",
+            total_plies=0,
+            moves=(),
+            white=SideAnalysisSummary(5, 30.0, 1, 0, 0, good=2, best=2),
+            black=SideAnalysisSummary(5, 25.0, 0, 0, 0, good=3, best=2),
+            critical_plies=(),
+        )
+        panel.set_report(report)
+
+        assert panel._white_rows[MoveJudgment.GOOD]._count.text() == "2"
+        assert panel._black_rows[MoveJudgment.GOOD]._count.text() == "3"

@@ -104,6 +104,13 @@ def on_undo(host: Any) -> None:
     if not host._controller.undo_move():
         return
 
+    # Invalidate stale analysis report since the move history changed.
+    if getattr(host, "_analysis_mode", False):
+        from chessie.ui.main_window_parts import analysis as analysis_part
+
+        analysis_part.on_exit_analysis(host)
+    host._analysis_report = None
+
     state = host._controller.state
     # Human-vs-AI UX: one click should roll back the full turn pair.
     if host._is_human_vs_ai():

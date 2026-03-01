@@ -75,6 +75,8 @@ class EngineWorker(QObject):
     def cancel(self) -> None:
         """Request cancellation of the current search."""
         self._cancel_event.set()
+        if hasattr(self._engine, "cancel"):
+            self._engine.cancel()
 
     @pyqtSlot(int, int)
     def set_limits(self, max_depth: int, time_limit_ms: int) -> None:

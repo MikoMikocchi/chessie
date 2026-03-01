@@ -94,3 +94,4 @@ class GameAnalysisReport:
     white: SideAnalysisSummary
     black: SideAnalysisSummary
     critical_plies: tuple[int, ...]
+    move_fingerprint: str = ""
