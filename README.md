@@ -20,8 +20,8 @@ Desktop chess application with a high-performance C++ AI engine backend and a ga
 Chessie offers a playable chess board along with an integrated AI engine. It uses a modern architecture, splitting the computationally heavy engine logic into a C++ module exposed via `pybind11`, and keeping the UI and high-level game logic in Python.
 
 ### Gameplay
-![Gameplay](https://github.com/user-attachments/assets/5b5d9dca-40a9-4e7d-8688-551b983bdb14)
 
+![Gameplay](https://github.com/user-attachments/assets/5b5d9dca-40a9-4e7d-8688-551b983bdb14)
 
 ## Features
 
@@ -31,6 +31,7 @@ Chessie offers a playable chess board along with an integrated AI engine. It use
 - **PGN Parsing & Exporting**: Load your favorite games, or save played matches.
 
 ### Game Analyzer
+
 ![Game Analyzer](https://github.com/user-attachments/assets/67373a0b-a8a6-4001-bf3e-53bf71d6b7b5)
 
 ## Installation & Setup
@@ -40,16 +41,17 @@ You will need **Python 3.13+**, **CMake 3.20+**, and a **C++20 compliant compile
 We recommend using [`uv`](https://docs.astral.sh/uv/) for Python dependency management.
 
 1. Clone the repository:
-   ```bash
-   git clone https://github.com/MikoMikocchi/chessie.git
-   cd chessie
-   ```
+
+    ```bash
+    git clone https://github.com/MikoMikocchi/chessie.git
+    cd chessie
+    ```
 
 2. Sync dependencies and build the C++ engine:
-   ```bash
-   uv sync --all-groups
-   ```
-   *This automatically builds the C++ module via `scikit-build-core` and installs it in the environment.*
+    ```bash
+    uv sync --all-groups
+    ```
+    _This automatically builds the C++ module via `scikit-build-core` and installs it in the environment._
 
 ## Running the App
 
