@@ -430,6 +430,50 @@ bool Position::is_in_check(Color c) const noexcept {
     return is_square_attacked(board_.king_square(c), opposite(c));
 }
 
+// ── Null move ───────────────────────────────────────────────────────────────
+
+void Position::make_null_move() {
+    // Save undo state (captured = kNoPiece since no move is made)
+    history_.push_back({castling_, en_passant_, halfmove_clock_, kNoPiece, key_});
+
+    // Clear en passant
+    set_en_passant(kNoSquare);
+
+    // Flip side to move
+    side_to_move_ = opposite(side_to_move_);
+    toggle_side_hash();
+
+    // Update clocks
+    ++halfmove_clock_;
+    if (side_to_move_ == Color::White) {
+        ++fullmove_number_;
+    }
+
+    key_history_.push_back(key_);
+}
+
+void Position::unmake_null_move() {
+    key_history_.pop_back();
+
+    auto& undo = history_.back();
+    en_passant_ = undo.en_passant;
+    halfmove_clock_ = undo.halfmove_clock;
+    key_ = undo.key;
+
+    // Restore castling (unchanged but for consistency)
+    castling_ = undo.castling;
+
+    // Flip side back
+    side_to_move_ = opposite(side_to_move_);
+
+    // Restore fullmove
+    if (side_to_move_ == Color::Black) {
+        --fullmove_number_;
+    }
+
+    history_.pop_back();
+}
+
 // ── Repetition ──────────────────────────────────────────────────────────────
 
 int Position::repetition_count() const {

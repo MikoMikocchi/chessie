@@ -105,6 +105,12 @@ class Position {
     /// Undo the last make_move.
     void unmake_move(Move m);
 
+    /// Apply a "null move" (pass turn, clear EP). For null move pruning.
+    void make_null_move();
+
+    /// Undo a null move.
+    void unmake_null_move();
+
     // ── Accessors ───────────────────────────────────────────────────────
 
     [[nodiscard]] const Board& board() const noexcept { return board_; }
