@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from chessie.core.bitboard import squares_from_bitboard
 from chessie.core.enums import Color, PieceType
 from chessie.core.piece import Piece
 from chessie.core.types import Square, make_square
@@ -32,12 +33,7 @@ class Board:
 
     @staticmethod
     def _squares_from_bitboard(bitboard: int) -> list[Square]:
-        squares: list[Square] = []
-        while bitboard:
-            lsb = bitboard & -bitboard
-            squares.append(lsb.bit_length() - 1)
-            bitboard ^= lsb
-        return squares
+        return squares_from_bitboard(bitboard)
 
     # -- Element access -----------------------------------------------------
 

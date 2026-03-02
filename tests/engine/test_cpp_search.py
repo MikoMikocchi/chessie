@@ -1,8 +1,4 @@
-"""Tests for the C++ engine wrapper (``CppSearchEngine``).
-
-Mirrors the key behavioural tests from ``test_search.py`` but exercises
-the native C++ search through the pybind11 bridge.
-"""
+"""Tests for the C++ engine wrapper (``CppSearchEngine``)."""
 
 from __future__ import annotations
 
@@ -21,12 +17,13 @@ from chessie.engine.search import SearchLimits, SearchResult
 if TYPE_CHECKING:
     pass
 
-# Skip the entire module when the native extension is not available.
-pytest.importorskip(
-    "chessie.engine.cpp_search",
-    reason="C++ engine not built (BUILD_PYBIND=ON required)",
-)
 from chessie.engine.cpp_search import CppSearchEngine, is_available
+
+if not is_available():
+    pytest.skip(
+        "C++ engine not built (BUILD_PYBIND=ON required)",
+        allow_module_level=True,
+    )
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -213,21 +210,3 @@ class TestCppSearchEngine:
         # The move should be a valid Move with a proper flag.
         legal = MoveGenerator(pos).generate_legal_moves()
         assert result.best_move in legal
-
-    # ── Python/C++ parity ────────────────────────────────────────────────
-
-    def test_agrees_with_python_on_mate(self) -> None:
-        """Both engines must find checkmate in the same position."""
-        from chessie.engine import PythonSearchEngine
-
-        pos_fen = "6k1/7Q/6K1/8/8/8/8/8 w - - 0 1"
-        limits = SearchLimits(max_depth=3, time_limit_ms=None)
-
-        py_result = PythonSearchEngine().search(position_from_fen(pos_fen), limits)
-        cpp_result = CppSearchEngine(tt_mb=1).search(position_from_fen(pos_fen), limits)
-
-        # Both must find it.
-        assert py_result.best_move is not None
-        assert cpp_result.best_move is not None
-        assert py_result.score_cp > 90_000
-        assert cpp_result.score_cp > 90_000

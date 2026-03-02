@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import threading
+from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
 
 from chessie.core.position import Position
 from chessie.engine._default import DefaultEngine
 from chessie.engine.search import SearchLimits
+
+if TYPE_CHECKING:
+    from chessie.engine.search import IEngine
 
 
 class EngineWorker(QObject):
@@ -28,7 +32,7 @@ class EngineWorker(QObject):
         time_limit_ms: int | None = 700,
     ) -> None:
         super().__init__()
-        self._engine = DefaultEngine()
+        self._engine: IEngine | None = None
         self._limits = SearchLimits(max_depth=max_depth, time_limit_ms=time_limit_ms)
         self._cancel_event = threading.Event()
 
@@ -38,6 +42,13 @@ class EngineWorker(QObject):
         if not isinstance(position_obj, Position):
             self.search_error.emit(request_id, "Engine received invalid position")
             return
+
+        if self._engine is None:
+            try:
+                self._engine = DefaultEngine()
+            except Exception as exc:
+                self.search_error.emit(request_id, str(exc))
+                return
 
         self._cancel_event.clear()
         try:
@@ -75,7 +86,7 @@ class EngineWorker(QObject):
     def cancel(self) -> None:
         """Request cancellation of the current search."""
         self._cancel_event.set()
-        if hasattr(self._engine, "cancel"):
+        if self._engine is not None and hasattr(self._engine, "cancel"):
             self._engine.cancel()
 
     @pyqtSlot(int, int)

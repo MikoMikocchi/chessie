@@ -1,8 +1,7 @@
 """C++ engine wrapper implementing the ``IEngine`` protocol.
 
-Communication with the native library uses FEN strings (position) and
-UCI strings (moves), keeping the coupling between Python and C++ types
-to an absolute minimum.
+Communication with the native library uses FEN strings and compact move
+tuples to keep Python/C++ mapping simple and deterministic.
 """
 
 from __future__ import annotations
@@ -26,6 +25,7 @@ except ImportError:
     except ImportError:
         _chessie_engine = None
 
+
 _PROMO_MAP: dict[str, PieceType] = {
     "n": PieceType.KNIGHT,
     "b": PieceType.BISHOP,
@@ -34,32 +34,27 @@ _PROMO_MAP: dict[str, PieceType] = {
 }
 
 
-def _uci_to_move(uci: str, position: Position) -> Move | None:
-    """Convert a UCI move string to a Python :class:`Move`.
+def _parse_sq(name: str) -> int:
+    """Parse a square name like 'e4' to index 0-63."""
+    return (ord(name[0]) - ord("a")) + (int(name[1]) - 1) * 8
 
-    Uses the position's legal move list to find the exact move object
-    (with the correct :class:`MoveFlag`) matching the UCI string.
-    """
-    if not uci:
+
+def _legacy_uci_to_move(uci: str, position: Position) -> Move | None:
+    """Decode legacy pybind ``search`` result where best move is a UCI string."""
+    if len(uci) < 4:
         return None
 
     from_sq = _parse_sq(uci[0:2])
     to_sq = _parse_sq(uci[2:4])
     promo: PieceType | None = _PROMO_MAP.get(uci[4]) if len(uci) >= 5 else None
 
+    # Map to the exact legal move to preserve special flags.
     for move in MoveGenerator(position).generate_legal_moves():
         if move.from_sq == from_sq and move.to_sq == to_sq and move.promotion == promo:
             return move
 
-    # Fallback: construct a plain move (should only happen if movegen
-    # differs between Python and C++, which should not occur).
     flag = MoveFlag.PROMOTION if promo is not None else MoveFlag.NORMAL
     return Move(from_sq, to_sq, flag, promo)
-
-
-def _parse_sq(name: str) -> int:
-    """Parse a square name like 'e4' to index 0-63."""
-    return (ord(name[0]) - ord("a")) + (int(name[1]) - 1) * 8
 
 
 def is_available() -> bool:
@@ -70,8 +65,7 @@ def is_available() -> bool:
 class CppSearchEngine(IEngine):
     """Chess engine backed by the native C++ search.
 
-    Implements the :class:`IEngine` protocol so it can be used as a
-    drop-in replacement for :class:`PythonSearchEngine`.
+    Implements the :class:`IEngine` protocol used by the application.
     """
 
     __slots__ = ("_engine",)
@@ -80,7 +74,7 @@ class CppSearchEngine(IEngine):
         if _chessie_engine is None:
             msg = (
                 "Native C++ engine module (_chessie_engine) is not available. "
-                "Build it with BUILD_PYBIND=ON or fall back to PythonSearchEngine."
+                "Build/install Chessie with BUILD_PYBIND=ON."
             )
             raise ImportError(msg)
         self._engine: _chessie_engine.Engine = _chessie_engine.Engine(tt_mb)
@@ -105,13 +99,36 @@ class CppSearchEngine(IEngine):
         fen = position_to_fen(position)
         time_ms = limits.time_limit_ms if limits.time_limit_ms is not None else -1
 
-        uci_move, score_cp, depth, nodes = self._engine.search(
+        native_result = self._engine.search(
             fen,
             limits.max_depth,
             time_ms,
         )
+        best_move: Move | None
 
-        best_move = _uci_to_move(uci_move, position)
+        if len(native_result) == 8:
+            (
+                has_move,
+                from_sq,
+                to_sq,
+                move_flag,
+                promotion,
+                score_cp,
+                depth,
+                nodes,
+            ) = native_result
+            best_move = None
+            if has_move:
+                promo = PieceType(promotion) if promotion else None
+                best_move = Move(from_sq, to_sq, MoveFlag(move_flag), promo)
+        elif len(native_result) == 4:
+            uci_move, score_cp, depth, nodes = native_result
+            best_move = _legacy_uci_to_move(uci_move, position)
+        else:
+            raise RuntimeError(
+                "Unsupported _chessie_engine.search result format. "
+                "Rebuild native module with current bindings."
+            )
 
         return SearchResult(
             best_move=best_move,
