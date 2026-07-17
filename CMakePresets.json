@@ -1,6 +1,71 @@
 {
     "version": 6,
-    "include": [
-        "./engine_cpp/CMakePresets.json"
+    "configurePresets": [
+        {
+            "name": "debug",
+            "displayName": "Debug + ASAN",
+            "description": "Debug build with AddressSanitizer and tests",
+            "binaryDir": "${sourceDir}/build/debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "BUILD_TESTS": "ON",
+                "USE_ASAN": "ON"
+            }
+        },
+        {
+            "name": "ci",
+            "displayName": "CI (Debug, no ASAN)",
+            "description": "Debug build for CI environments where ASAN may be unavailable",
+            "binaryDir": "${sourceDir}/build/ci",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "BUILD_TESTS": "ON",
+                "USE_ASAN": "OFF"
+            }
+        },
+        {
+            "name": "release",
+            "displayName": "Release",
+            "description": "Optimised release build without tests",
+            "binaryDir": "${sourceDir}/build/release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "BUILD_TESTS": "OFF",
+                "USE_ASAN": "OFF"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "debug",
+            "configurePreset": "debug",
+            "jobs": 0
+        },
+        {
+            "name": "ci",
+            "configurePreset": "ci",
+            "jobs": 0
+        },
+        {
+            "name": "release",
+            "configurePreset": "release",
+            "jobs": 0
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "debug",
+            "configurePreset": "debug",
+            "output": {
+                "outputOnFailure": true
+            }
+        },
+        {
+            "name": "ci",
+            "configurePreset": "ci",
+            "output": {
+                "outputOnFailure": true
+            }
+        }
     ]
 }

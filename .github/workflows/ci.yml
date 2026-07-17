@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ "master", "main" ]
+    branches: ["master", "main"]
   pull_request:
-    branches: [ "master", "main" ]
+    branches: ["master", "main"]
 
 jobs:
   lint:
@@ -13,31 +13,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-          python-version: "3.13"
-
-      - name: Ruff check
-        run: uv run ruff check .
-
-      - name: Ruff format
-        run: uv run ruff format --check .
-
-      - name: Mypy check
-        run: uv run mypy src
-
-      - name: Bandit check
-        run: uv run bandit -c pyproject.toml -r src
-
       - name: clang-format check
         run: |
-          find engine_cpp -name '*.cpp' -o -name '*.hpp' | \
+          find include src tests -name '*.cpp' -o -name '*.hpp' | \
             xargs clang-format --dry-run --Werror
 
-  cpp-tests:
-    name: C++ tests (${{ matrix.os }})
+  build-and-test:
+    name: Build & test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -47,61 +29,29 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure (ci preset)
-        run: cmake --preset ci
-        working-directory: engine_cpp
-
-      - name: Build (Linux/macOS)
-        if: runner.os != 'Windows'
-        run: cmake --build --preset ci
-        working-directory: engine_cpp
-
-      - name: Build (Windows)
-        if: runner.os == 'Windows'
-        run: cmake --build --preset ci --config Debug
-        working-directory: engine_cpp
-
-      - name: Test (Linux/macOS)
-        if: runner.os != 'Windows'
-        run: ctest --preset ci
-        working-directory: engine_cpp
-
-      - name: Test (Windows)
-        if: runner.os == 'Windows'
-        run: ctest --preset ci -C Debug
-        working-directory: engine_cpp
-
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+      - name: Install Qt (Linux)
+        if: runner.os == 'Linux'
+        uses: jurplel/install-qt-action@v4
         with:
-          enable-cache: true
-          python-version: "3.13"
+          version: "6.8.0"
+          modules: "qtquickcontrols2 qtmultimedia qtsvg"
+          cache: true
 
-      - name: Build wheel
-        run: uv build
-
-  test:
-    name: test (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+      - name: Install Qt (macOS)
+        if: runner.os == 'macOS'
+        uses: jurplel/install-qt-action@v4
         with:
-          enable-cache: true
-          python-version: "3.13"
+          version: "6.8.0"
+          modules: "qtquickcontrols2 qtmultimedia qtsvg"
+          cache: true
+
+      - name: Install Qt (Windows)
+        if: runner.os == 'Windows'
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.8.0"
+          modules: "qtquickcontrols2 qtmultimedia qtsvg"
+          cache: true
 
       - name: Install system dependencies (Linux)
         if: runner.os == 'Linux'
@@ -123,22 +73,23 @@ jobs:
             libglib2.0-0 \
             libdbus-1-3 \
             libfontconfig1 \
-            libpulse0 \
-            xvfb
-          if apt-cache policy libasound2 | grep -q "Candidate: (none)"; then
-            sudo apt-get install -y libasound2t64
-          else
-            sudo apt-get install -y libasound2
-          fi
+            libpulse0
 
-      - name: Run tests (Linux)
-        if: runner.os == 'Linux'
-        env:
-          QT_QPA_PLATFORM: xcb
-        run: |
-          xvfb-run --auto-servernum --server-args="-screen 0 1024x768x24" uv run pytest --cov=src --cov-report=term-missing
+      - name: Configure
+        run: cmake --preset ci
 
-      - name: Run tests (macOS/Windows)
-        if: runner.os != 'Linux'
-        run: |
-          uv run pytest --cov=src --cov-report=term-missing
+      - name: Build (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: cmake --build --preset ci
+
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        run: cmake --build --preset ci --config Debug
+
+      - name: Test (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: ctest --preset ci --output-on-failure
+
+      - name: Test (Windows)
+        if: runner.os == 'Windows'
+        run: ctest --preset ci -C Debug --output-on-failure

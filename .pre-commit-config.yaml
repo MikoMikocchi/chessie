@@ -1,39 +1,12 @@
 default_install_hook_types: [pre-commit, commit-msg]
 
 repos:
-  # ── Python: Ruff (lint + format) ────────────────────────────────────────
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.7
-    hooks:
-      - id: ruff
-        args: [--fix]
-      - id: ruff-format
-
-  # ── Python: Mypy ─────────────────────────────────────────────────────────
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.14.1
-    hooks:
-      - id: mypy
-        additional_dependencies: ["PyQt6>=6.8", "pytest"]
-        args: [--ignore-missing-imports]
-
-  # ── Python: Bandit  ──────────────────────────────────────────
-  - repo: https://github.com/PyCQA/bandit
-    rev: 1.9.4
-    hooks:
-      - id: bandit
-        pass_filenames: false
-        args: ["-c", "pyproject.toml", "-r", "src"]
-        additional_dependencies: ["bandit[toml]"]
-
-  # ── General ──────────────────────────────────────────────────────────────
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
-      - id: check-toml
       - id: check-merge-conflict
       - id: check-added-large-files
         args: [--maxkb=500]
@@ -41,9 +14,8 @@ repos:
       - id: mixed-line-ending
         args: [--fix=lf]
 
-  # ── C++: clang-format ────────────────────────────────────────────────────
   - repo: https://github.com/pre-commit/mirrors-clang-format
     rev: v19.1.7
     hooks:
       - id: clang-format
-        files: 'engine_cpp/.*\.(cpp|hpp)$'
+        files: '(include|src|tests)/.*\.(cpp|hpp)$'
